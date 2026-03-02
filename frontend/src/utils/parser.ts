@@ -44,7 +44,7 @@ function fixReference(field: string): string {
 
 function getRelatedAssets(asset: any): string[] {
   const references = new Set<string>();
-  const ignoredKeys = new Set(['discoveryDocumentUri', 'name', 'selfLink']);
+  const ignoredKeys = new Set(['assetType', 'discoveryDocumentUri', 'location', 'name', 'region', 'selfLink', 'zone']);
 
   function traverse(obj: any) {
     if (typeof obj === 'string') {

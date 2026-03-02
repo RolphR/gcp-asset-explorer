@@ -58,9 +58,13 @@ Determine these references by applying the following strategy:
 
 1. Go over every field in the raw asset object.
 2. Ignore the following fields:
+   - `assetType`
    - `discoveryDocumentUri`
+   - `location`
    - `name`
+   - `region`
    - `selfLink`
+   - `zone`
 3. If it looks like a reference to an existing asset, proceed.
    Otherwise, ignore it. ignore it.
    Examples of valid references are:

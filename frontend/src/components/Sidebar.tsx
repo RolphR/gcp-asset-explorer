@@ -101,9 +101,22 @@ export function Sidebar({ node, onClose, onNavigate, onSelectNode, hasNext, hasP
                   <td className="px-4 py-2 text-gray-900">{node.location || 'global'}</td>
                 </tr>
                 <tr className="bg-white">
-                  <th className="px-4 py-2 font-medium text-gray-500 bg-gray-50">Parent</th>
+                  <th className="px-4 py-2 font-medium text-gray-500 bg-gray-50 align-top">Parent</th>
                   <td className="px-4 py-2 text-gray-900 break-all">
-                    {Array.isArray(node.parent) ? node.parent.join(', ') : (node.parent || '-')}
+                    {node.parent ? (
+                      <ul className="space-y-1">
+                        {(Array.isArray(node.parent) ? node.parent : [node.parent]).map(p => (
+                          <li key={p}>
+                            <button 
+                              onClick={() => onSelectNode(p)}
+                              className="text-blue-600 hover:text-blue-800 hover:underline text-left transition-colors"
+                            >
+                              {p}
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : '-'}
                   </td>
                 </tr>
                 {node.routerType && (

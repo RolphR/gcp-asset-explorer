@@ -101,7 +101,9 @@ export function Sidebar({ node, onClose, onNavigate, hasNext, hasPrev }: Sidebar
                 </tr>
                 <tr className="bg-white">
                   <th className="px-4 py-2 font-medium text-gray-500 bg-gray-50">Parent</th>
-                  <td className="px-4 py-2 text-gray-900 break-all">{node.parent || '-'}</td>
+                  <td className="px-4 py-2 text-gray-900 break-all">
+                    {Array.isArray(node.parent) ? node.parent.join(', ') : (node.parent || '-')}
+                  </td>
                 </tr>
                 <tr className="bg-white">
                   <th className="px-4 py-2 font-medium text-gray-500 bg-gray-50">Asset ID</th>

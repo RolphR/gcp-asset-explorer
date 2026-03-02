@@ -6,7 +6,12 @@ export interface GraphNode {
   displayName?: string;
   location?: string;
   assetType?: string;
-  parent?: string;
+  parent?: string | string[];
+  routerType?: string;
+  cidr?: string;
+  destRange?: string;
+  status?: string;
+  relatedAssets?: string[];
 }
 
 export interface GraphEdge {
@@ -37,54 +42,59 @@ function fixReference(field: string): string {
   }
 }
 
-function getParent(asset: any): string {
-  let parentName = asset.resource?.parent || "";
-  if (!parentName && asset.ancestors && asset.ancestors.length > 0) {
-    parentName = fixReference(asset.ancestors[0]);
+function getRelatedAssets(asset: any): string[] {
+  const references = new Set<string>();
+  const ignoredKeys = new Set(['discoveryDocumentUri', 'name', 'selfLink']);
+
+  function traverse(obj: any) {
+    if (typeof obj === 'string') {
+      if (
+        obj.includes('googleapis.com') ||
+        /^(projects|folders|organizations)\//.test(obj)
+      ) {
+        references.add(fixReference(obj));
+      }
+    } else if (Array.isArray(obj)) {
+      for (const item of obj) {
+        traverse(item);
+      }
+    } else if (obj !== null && typeof obj === 'object') {
+      for (const [key, value] of Object.entries(obj)) {
+        if (ignoredKeys.has(key)) {
+          continue;
+        }
+        traverse(value);
+      }
+    }
   }
-  return parentName;
+
+  traverse(asset);
+  return Array.from(references).sort();
 }
 
-function getEdges(asset: any): string[] {
+function getParent(asset: any): string | string[] {
   const assetType = asset.assetType;
   const resourceData = asset.resource?.data || {};
-  const parent = getParent(asset);
 
-  if (assetType === "compute.googleapis.com/Address") {
-    const edges: string[] = [];
-    if (resourceData.subnetwork) {
-      edges.push(fixReference(resourceData.subnetwork));
-    } else if (resourceData.users) {
-      for (const user of resourceData.users) {
-        edges.push(fixReference(user));
-      }
-    } else if (resourceData.status === "RESERVED") {
-      edges.push(parent);
-    } else {
-      console.log(`Unknown binding for address ${asset.name}...`);
-      edges.push(parent);
+  const getGenericParent = () => {
+    let parentName = asset.resource?.parent || "";
+    if (parentName) {
+      parentName = fixReference(parentName);
+    } else if (asset.ancestors && asset.ancestors.length > 0) {
+      parentName = fixReference(asset.ancestors[0]);
     }
-    return edges;
-  }
+    return parentName;
+  };
 
-  if (assetType === "compute.googleapis.com/ForwardingRule") {
-    if (resourceData.network) return [fixReference(resourceData.network)];
-    if (resourceData.target) return [fixReference(resourceData.target)];
-    console.log(`Unknown target for forwarding rule ${asset.name}...`);
-    return [parent];
+  if (assetType === "bigquery.googleapis.com/Dataset" || assetType === "bigquery.googleapis.com/Table") {
+    if (resourceData.id) return fixReference(resourceData.id);
   }
 
   if (assetType === "compute.googleapis.com/Route") {
-    const edges: string[] = [];
-    if (resourceData.nextHopVpnTunnel) edges.push(fixReference(resourceData.nextHopVpnTunnel));
-    else if (resourceData.nextHopNetwork) edges.push(fixReference(resourceData.nextHopNetwork));
-    else if (resourceData.nextHopGateway) edges.push(fixReference(resourceData.network));
-    else if (resourceData.nextHopPeering) edges.push(fixReference(resourceData.network));
-    else {
-      console.log(`Unknown target for route ${asset.name}...`);
-      if (resourceData.network) edges.push(fixReference(resourceData.network));
-    }
-    return edges;
+    if (resourceData.nextHopVpnTunnel) return fixReference(resourceData.nextHopVpnTunnel);
+    if (resourceData.nextHopNetwork) return fixReference(resourceData.nextHopNetwork);
+    if (resourceData.nextHopGateway) return fixReference(resourceData.network);
+    if (resourceData.nextHopPeering) return fixReference(resourceData.network);
   }
 
   if (
@@ -92,16 +102,28 @@ function getEdges(asset: any): string[] {
     assetType === "compute.googleapis.com/Subnetwork" ||
     assetType === "compute.googleapis.com/TargetVpnGateway"
   ) {
-    if (resourceData.network) return [fixReference(resourceData.network)];
-    return [parent];
+    if (resourceData.network) return fixReference(resourceData.network);
   }
 
   if (assetType === "compute.googleapis.com/VpnTunnel") {
-    if (resourceData.targetVpnGateway) return [fixReference(resourceData.targetVpnGateway)];
-    return [parent];
+    if (resourceData.targetVpnGateway) return fixReference(resourceData.targetVpnGateway);
+    if (resourceData.network) return fixReference(resourceData.network);
   }
 
-  return [parent];
+  if (assetType === "compute.googleapis.com/ForwardingRule") {
+    if (resourceData.network) return fixReference(resourceData.network);
+    if (resourceData.target) return fixReference(resourceData.target);
+    console.log(`Unknown target for forwarding rule ${asset.name}...`);
+  }
+
+  if (assetType === "compute.googleapis.com/Address") {
+    if (resourceData.subnetwork) return fixReference(resourceData.subnetwork);
+    if (resourceData.users && Array.isArray(resourceData.users) && resourceData.users.length > 0) {
+      return resourceData.users.map((u: string) => fixReference(u));
+    }
+  }
+
+  return getGenericParent();
 }
 
 export function parseAssetData(rawJson: any[]): GraphData {
@@ -128,6 +150,30 @@ export function parseAssetData(rawJson: any[]): GraphData {
     const label = `${assetType}:${cleanDisplayName}`;
     const parent = getParent(asset);
 
+    let routerType: string | undefined;
+    if (assetType === "compute.googleapis.com/Router") {
+      if (resourceData.nats) routerType = 'NAT';
+      else if (resourceData.bgp) routerType = 'BGP';
+      else routerType = 'UNKNOWN';
+    }
+
+    let cidr: string | undefined;
+    if (assetType === "compute.googleapis.com/Subnetwork") {
+      cidr = resourceData.ipCidrRange;
+    }
+
+    let destRange: string | undefined;
+    if (assetType === "compute.googleapis.com/Route") {
+      destRange = resourceData.destRange;
+    }
+
+    let status: string | undefined;
+    if (assetType === "compute.googleapis.com/Address") {
+      status = resourceData.status;
+    }
+
+    const related = getRelatedAssets(asset);
+
     nodes.push({
       id: sourceName,
       label,
@@ -136,12 +182,29 @@ export function parseAssetData(rawJson: any[]): GraphData {
       displayName: cleanDisplayName,
       location: location,
       assetType: assetType,
-      parent: parent
+      parent: parent,
+      ...(routerType && { routerType }),
+      ...(cidr && { cidr }),
+      ...(destRange && { destRange }),
+      ...(status && { status }),
+      relatedAssets: related,
     });
     nodesSet.add(sourceName);
 
-    const assetEdges = getEdges(asset);
-    linksMap.set(sourceName, assetEdges);
+    const assetEdges = new Set<string>();
+    
+    if (Array.isArray(parent)) {
+      for (const p of parent) {
+        if (p) assetEdges.add(p);
+      }
+    } else if (parent) {
+      assetEdges.add(parent);
+    }
+
+    // A node shouldn't have an edge to itself
+    assetEdges.delete(sourceName);
+
+    linksMap.set(sourceName, Array.from(assetEdges));
   }
 
   const links: GraphEdge[] = [];

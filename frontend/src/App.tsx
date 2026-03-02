@@ -57,7 +57,13 @@ function App() {
       services.add(node.group);
       if (node.assetType) assetTypes.add(node.assetType);
       if (node.location) locations.add(node.location);
-      if (node.parent) parents.add(node.parent);
+      if (node.parent) {
+        if (Array.isArray(node.parent)) {
+          node.parent.forEach(p => parents.add(p));
+        } else {
+          parents.add(node.parent);
+        }
+      }
     }
     return {
       services: Array.from(services),
@@ -86,7 +92,8 @@ function App() {
       const nodeService = node.group;
       const nodeAssetType = node.assetType || 'unknown';
       const nodeLocation = node.location || 'global';
-      const nodeParent = node.parent || '';
+      const nodeParent = node.parent || [];
+      const parentArray = Array.isArray(nodeParent) ? nodeParent : [nodeParent].filter(Boolean);
 
       // Check text match
       let textMatch = true;
@@ -103,7 +110,7 @@ function App() {
       const serviceMatch = filters.services.size === 0 || filters.services.has(nodeService);
       const assetTypeMatch = filters.assetTypes.size === 0 || filters.assetTypes.has(nodeAssetType);
       const locationMatch = filters.locations.size === 0 || filters.locations.has(nodeLocation);
-      const parentMatch = filters.parents.size === 0 || filters.parents.has(nodeParent);
+      const parentMatch = filters.parents.size === 0 || parentArray.some(p => filters.parents.has(p));
 
       if (assetTypeMatch && locationMatch && parentMatch && textMatch) {
         serviceCounts.set(nodeService, (serviceCounts.get(nodeService) || 0) + 1);
@@ -117,8 +124,10 @@ function App() {
         locationCounts.set(nodeLocation, (locationCounts.get(nodeLocation) || 0) + 1);
       }
 
-      if (serviceMatch && assetTypeMatch && locationMatch && textMatch && nodeParent) {
-        parentCounts.set(nodeParent, (parentCounts.get(nodeParent) || 0) + 1);
+      if (serviceMatch && assetTypeMatch && locationMatch && textMatch && parentArray.length > 0) {
+        parentArray.forEach(p => {
+          parentCounts.set(p, (parentCounts.get(p) || 0) + 1);
+        });
       }
     }
 
@@ -161,8 +170,11 @@ function App() {
         isMatch = false;
       }
 
-      if (isMatch && filters.parents.size > 0 && (!node.parent || !filters.parents.has(node.parent))) {
-        isMatch = false;
+      if (isMatch && filters.parents.size > 0) {
+        const pArray = Array.isArray(node.parent) ? node.parent : (node.parent ? [node.parent] : []);
+        if (pArray.length === 0 || !pArray.some(p => filters.parents.has(p))) {
+          isMatch = false;
+        }
       }
 
       if (isMatch && lowerText) {

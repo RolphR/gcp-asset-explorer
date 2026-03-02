@@ -7,11 +7,12 @@ interface SidebarProps {
   node: GraphNode | null;
   onClose: () => void;
   onNavigate: (dir: 'prev' | 'next') => void;
+  onSelectNode: (id: string) => void;
   hasNext: boolean;
   hasPrev: boolean;
 }
 
-export function Sidebar({ node, onClose, onNavigate, hasNext, hasPrev }: SidebarProps) {
+export function Sidebar({ node, onClose, onNavigate, onSelectNode, hasNext, hasPrev }: SidebarProps) {
   const [jsonCollapsed, setJsonCollapsed] = useState<number | false>(false);
   const [width, setWidth] = useState(512);
 
@@ -105,6 +106,49 @@ export function Sidebar({ node, onClose, onNavigate, hasNext, hasPrev }: Sidebar
                     {Array.isArray(node.parent) ? node.parent.join(', ') : (node.parent || '-')}
                   </td>
                 </tr>
+                {node.routerType && (
+                  <tr className="bg-white">
+                    <th className="px-4 py-2 font-medium text-gray-500 bg-gray-50">Router Type</th>
+                    <td className="px-4 py-2 text-gray-900">{node.routerType}</td>
+                  </tr>
+                )}
+                {node.cidr && (
+                  <tr className="bg-white">
+                    <th className="px-4 py-2 font-medium text-gray-500 bg-gray-50">CIDR</th>
+                    <td className="px-4 py-2 text-gray-900">{node.cidr}</td>
+                  </tr>
+                )}
+                {node.destRange && (
+                  <tr className="bg-white">
+                    <th className="px-4 py-2 font-medium text-gray-500 bg-gray-50">Destination Range</th>
+                    <td className="px-4 py-2 text-gray-900">{node.destRange}</td>
+                  </tr>
+                )}
+                {node.status && (
+                  <tr className="bg-white">
+                    <th className="px-4 py-2 font-medium text-gray-500 bg-gray-50">Status</th>
+                    <td className="px-4 py-2 text-gray-900">{node.status}</td>
+                  </tr>
+                )}
+                {node.relatedAssets && node.relatedAssets.length > 0 && (
+                  <tr className="bg-white">
+                    <th className="px-4 py-2 font-medium text-gray-500 bg-gray-50 align-top">Related Assets</th>
+                    <td className="px-4 py-2 text-gray-900 break-all text-xs">
+                      <ul className="space-y-1">
+                        {node.relatedAssets.map(ref => (
+                          <li key={ref}>
+                            <button 
+                              onClick={() => onSelectNode(ref)}
+                              className="text-blue-600 hover:text-blue-800 hover:underline text-left transition-colors"
+                            >
+                              {ref}
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    </td>
+                  </tr>
+                )}
                 <tr className="bg-white">
                   <th className="px-4 py-2 font-medium text-gray-500 bg-gray-50">Asset ID</th>
                   <td className="px-4 py-2 text-gray-900 break-all text-xs font-mono">{node.id}</td>
@@ -137,6 +181,12 @@ export function Sidebar({ node, onClose, onNavigate, hasNext, hasPrev }: Sidebar
                 collapsed={jsonCollapsed}
                 shortenTextAfterLength={100000}
                 style={{ fontSize: '12px', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace' }}
+                beforeCopy={(text, _keyName, value) => {
+                  if (typeof value === 'string') {
+                    return value;
+                  }
+                  return text;
+                }}
               />
             </div>
           </div>

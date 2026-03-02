@@ -250,6 +250,14 @@ function App() {
     }
   };
 
+  const handleSelectNode = (id: string) => {
+    if (!data) return;
+    const nextNode = data.nodes.find(n => n.id === id);
+    if (nextNode) {
+      setSelectedNode(nextNode);
+    }
+  };
+
   const hasNext = selectedNode ? filteredNodes.findIndex(n => n.id === selectedNode.id) < filteredNodes.length - 1 : false;
   const hasPrev = selectedNode ? filteredNodes.findIndex(n => n.id === selectedNode.id) > 0 : false;
 
@@ -304,6 +312,7 @@ function App() {
               node={selectedNode} 
               onClose={() => setSelectedNode(null)} 
               onNavigate={handleNavigate}
+              onSelectNode={handleSelectNode}
               hasNext={hasNext}
               hasPrev={hasPrev}
             />

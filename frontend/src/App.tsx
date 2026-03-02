@@ -11,6 +11,7 @@ import { RefreshCw, Download } from 'lucide-react';
 function App() {
   const [data, setData] = useState<GraphData | null>(null);
   const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null);
+  const [zoomTrigger, setZoomTrigger] = useState(0);
 
   const [filters, setFilters] = useState<FilterState>({
     freeText: '',
@@ -258,6 +259,8 @@ function App() {
     }
   };
 
+  const handleZoomTo = () => setZoomTrigger(prev => prev + 1);
+
   const getNodeDisplayName = (id: string) => {
     if (!data) return id;
     const n = data.nodes.find(node => node.id === id);
@@ -313,6 +316,7 @@ function App() {
               matchedNodeIds={matchedNodeIds}
               dimUnmatched={!filters.hideNonMatching && matchedNodeIds.size !== data.nodes.length}
               selectedNodeId={selectedNode?.id}
+              zoomTrigger={zoomTrigger}
             />
             <Sidebar 
               node={selectedNode} 
@@ -320,6 +324,7 @@ function App() {
               onNavigate={handleNavigate}
               onSelectNode={handleSelectNode}
               getNodeDisplayName={getNodeDisplayName}
+              onZoomTo={handleZoomTo}
               hasNext={hasNext}
               hasPrev={hasPrev}
             />

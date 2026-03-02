@@ -8,6 +8,7 @@ interface GraphViewerProps {
   matchedNodeIds?: Set<string>;
   dimUnmatched?: boolean;
   selectedNodeId?: string;
+  zoomTrigger?: number;
 }
 
 const colorMap: Record<string, string> = {
@@ -22,7 +23,7 @@ function getColor(group: string) {
   return colorMap[group] || colorMap.unknown;
 }
 
-export function GraphViewer({ data, onNodeClick, matchedNodeIds, dimUnmatched = false, selectedNodeId }: GraphViewerProps) {
+export function GraphViewer({ data, onNodeClick, matchedNodeIds, dimUnmatched = false, selectedNodeId, zoomTrigger }: GraphViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const fgRef = useRef<any>(null);
   const [dimensions, setDimensions] = useState({ width: window.innerWidth, height: window.innerHeight });
@@ -62,6 +63,16 @@ export function GraphViewer({ data, onNodeClick, matchedNodeIds, dimUnmatched = 
       }
     }
   }, [selectedNodeId, data]);
+
+  useEffect(() => {
+    if (zoomTrigger && zoomTrigger > 0 && selectedNodeId && fgRef.current) {
+      const node = data.nodes.find(n => n.id === selectedNodeId) as any;
+      if (node && node.x !== undefined && node.y !== undefined) {
+        fgRef.current.centerAt(node.x, node.y, 800);
+        fgRef.current.zoom(4, 800);
+      }
+    }
+  }, [zoomTrigger, selectedNodeId, data]);
 
   const drawNode = (node: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
     const isMatched = !dimUnmatched || !matchedNodeIds || matchedNodeIds.has(node.id);

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, ChevronLeft, ChevronRight, ChevronsDownUp, ChevronsUpDown } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, ChevronsDownUp, ChevronsUpDown, Focus } from 'lucide-react';
 import type { GraphNode } from '../utils/parser';
 import JsonView from '@uiw/react-json-view';
 
@@ -9,11 +9,12 @@ interface SidebarProps {
   onNavigate: (dir: 'prev' | 'next') => void;
   onSelectNode: (id: string) => void;
   getNodeDisplayName: (id: string) => string;
+  onZoomTo: () => void;
   hasNext: boolean;
   hasPrev: boolean;
 }
 
-export function Sidebar({ node, onClose, onNavigate, onSelectNode, getNodeDisplayName, hasNext, hasPrev }: SidebarProps) {
+export function Sidebar({ node, onClose, onNavigate, onSelectNode, getNodeDisplayName, onZoomTo, hasNext, hasPrev }: SidebarProps) {
   const [jsonCollapsed, setJsonCollapsed] = useState<number | false>(false);
   const [width, setWidth] = useState(512);
 
@@ -69,6 +70,13 @@ export function Sidebar({ node, onClose, onNavigate, onSelectNode, getNodeDispla
             <ChevronRight className="w-5 h-5 text-gray-600" />
           </button>
           <div className="w-px h-6 bg-gray-300 mx-1"></div>
+          <button 
+            onClick={onZoomTo}
+            className="p-1 rounded hover:bg-gray-200 transition-colors"
+            title="Zoom to Asset"
+          >
+            <Focus className="w-5 h-5 text-gray-600" />
+          </button>
           <button 
             onClick={onClose}
             className="p-1 rounded-full hover:bg-gray-200 transition-colors"

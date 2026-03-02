@@ -59,7 +59,6 @@ export function GraphViewer({ data, onNodeClick, matchedNodeIds, dimUnmatched = 
       const node = data.nodes.find(n => n.id === selectedNodeId) as any;
       if (node && node.x !== undefined && node.y !== undefined) {
         fgRef.current.centerAt(node.x, node.y, 800);
-        fgRef.current.zoom(4, 800);
       }
     }
   }, [selectedNodeId, data]);

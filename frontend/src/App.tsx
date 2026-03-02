@@ -258,6 +258,12 @@ function App() {
     }
   };
 
+  const getNodeDisplayName = (id: string) => {
+    if (!data) return id;
+    const n = data.nodes.find(node => node.id === id);
+    return n?.displayName || id;
+  };
+
   const hasNext = selectedNode ? filteredNodes.findIndex(n => n.id === selectedNode.id) < filteredNodes.length - 1 : false;
   const hasPrev = selectedNode ? filteredNodes.findIndex(n => n.id === selectedNode.id) > 0 : false;
 
@@ -313,6 +319,7 @@ function App() {
               onClose={() => setSelectedNode(null)} 
               onNavigate={handleNavigate}
               onSelectNode={handleSelectNode}
+              getNodeDisplayName={getNodeDisplayName}
               hasNext={hasNext}
               hasPrev={hasPrev}
             />

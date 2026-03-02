@@ -8,11 +8,12 @@ interface SidebarProps {
   onClose: () => void;
   onNavigate: (dir: 'prev' | 'next') => void;
   onSelectNode: (id: string) => void;
+  getNodeDisplayName: (id: string) => string;
   hasNext: boolean;
   hasPrev: boolean;
 }
 
-export function Sidebar({ node, onClose, onNavigate, onSelectNode, hasNext, hasPrev }: SidebarProps) {
+export function Sidebar({ node, onClose, onNavigate, onSelectNode, getNodeDisplayName, hasNext, hasPrev }: SidebarProps) {
   const [jsonCollapsed, setJsonCollapsed] = useState<number | false>(false);
   const [width, setWidth] = useState(512);
 
@@ -109,9 +110,10 @@ export function Sidebar({ node, onClose, onNavigate, onSelectNode, hasNext, hasP
                           <li key={p}>
                             <button 
                               onClick={() => onSelectNode(p)}
+                              title={p}
                               className="text-blue-600 hover:text-blue-800 hover:underline text-left transition-colors"
                             >
-                              {p}
+                              {getNodeDisplayName(p)}
                             </button>
                           </li>
                         ))}
@@ -152,9 +154,10 @@ export function Sidebar({ node, onClose, onNavigate, onSelectNode, hasNext, hasP
                           <li key={ref}>
                             <button 
                               onClick={() => onSelectNode(ref)}
+                              title={ref}
                               className="text-blue-600 hover:text-blue-800 hover:underline text-left transition-colors"
                             >
-                              {ref}
+                              {getNodeDisplayName(ref)}
                             </button>
                           </li>
                         ))}

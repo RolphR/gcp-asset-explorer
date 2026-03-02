@@ -13,11 +13,38 @@ interface SidebarProps {
 
 export function Sidebar({ node, onClose, onNavigate, hasNext, hasPrev }: SidebarProps) {
   const [jsonCollapsed, setJsonCollapsed] = useState<number | false>(false);
+  const [width, setWidth] = useState(512);
 
   if (!node) return null;
 
+  const handleMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startWidth = width;
+
+    const handleMouseMove = (moveEvent: MouseEvent) => {
+      const deltaX = startX - moveEvent.clientX;
+      setWidth(Math.max(300, Math.min(startWidth + deltaX, window.innerWidth * 0.8)));
+    };
+
+    const handleMouseUp = () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+  };
+
   return (
-    <div className="absolute right-0 top-0 bottom-0 w-[32rem] bg-white shadow-xl flex flex-col z-50 transform transition-transform border-l border-gray-200">
+    <div 
+      style={{ width: `${width}px` }} 
+      className="absolute right-0 top-0 bottom-0 bg-white shadow-xl flex flex-col z-50 border-l border-gray-200"
+    >
+      <div 
+        className="absolute left-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-blue-500 hover:opacity-50 transition-colors z-50 -translate-x-1"
+        onMouseDown={handleMouseDown}
+      />
       <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-gray-50">
         <h2 className="text-lg font-semibold text-gray-800 truncate pr-4" title={node.displayName || node.id}>
           {node.displayName || node.id}
@@ -106,6 +133,7 @@ export function Sidebar({ node, onClose, onNavigate, hasNext, hasPrev }: Sidebar
                 displayDataTypes={false}
                 displayObjectSize={true}
                 collapsed={jsonCollapsed}
+                shortenTextAfterLength={100000}
                 style={{ fontSize: '12px', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace' }}
               />
             </div>

@@ -7,6 +7,7 @@ interface GraphViewerProps {
   onNodeClick: (node: GraphNode) => void;
   matchedNodeIds?: Set<string>;
   dimUnmatched?: boolean;
+  selectedNodeId?: string;
 }
 
 const colorMap: Record<string, string> = {
@@ -21,7 +22,7 @@ function getColor(group: string) {
   return colorMap[group] || colorMap.unknown;
 }
 
-export function GraphViewer({ data, onNodeClick, matchedNodeIds, dimUnmatched = false }: GraphViewerProps) {
+export function GraphViewer({ data, onNodeClick, matchedNodeIds, dimUnmatched = false, selectedNodeId }: GraphViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const fgRef = useRef<any>(null);
   const [dimensions, setDimensions] = useState({ width: window.innerWidth, height: window.innerHeight });
@@ -53,14 +54,34 @@ export function GraphViewer({ data, onNodeClick, matchedNodeIds, dimUnmatched = 
     }
   }, [data, dimUnmatched]);
 
+  useEffect(() => {
+    if (selectedNodeId && fgRef.current) {
+      const node = data.nodes.find(n => n.id === selectedNodeId) as any;
+      if (node && node.x !== undefined && node.y !== undefined) {
+        fgRef.current.centerAt(node.x, node.y, 800);
+        fgRef.current.zoom(4, 800);
+      }
+    }
+  }, [selectedNodeId, data]);
+
   const drawNode = (node: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
     const isMatched = !dimUnmatched || !matchedNodeIds || matchedNodeIds.has(node.id);
+    const isSelected = node.id === selectedNodeId;
     
-    const opacity = isMatched ? 1 : 0.15;
+    const opacity = isMatched || isSelected ? 1 : 0.15;
     ctx.globalAlpha = opacity;
 
-    // Draw the node circle
     const nodeSize = 6;
+
+    // Draw highlight for selected node
+    if (isSelected) {
+      ctx.beginPath();
+      ctx.arc(node.x, node.y, nodeSize + 4, 0, 2 * Math.PI, false);
+      ctx.fillStyle = 'rgba(251, 191, 36, 0.8)'; // amber-400
+      ctx.fill();
+    }
+
+    // Draw the node circle
     ctx.beginPath();
     ctx.arc(node.x, node.y, nodeSize, 0, 2 * Math.PI, false);
     ctx.fillStyle = getColor(node.group);

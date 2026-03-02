@@ -242,7 +242,7 @@ function App() {
   const hasPrev = selectedNode ? filteredNodes.findIndex(n => n.id === selectedNode.id) > 0 : false;
 
   return (
-    <div className={cn("min-h-screen bg-gray-50 flex flex-col w-full overflow-hidden")}>
+    <div className={cn("h-screen bg-gray-50 flex flex-col w-full overflow-hidden")}>
       <header className="flex items-center justify-between px-6 py-4 bg-white shadow-sm z-10 relative">
         <h1 className="text-xl font-semibold text-gray-800">GCP Asset Explorer</h1>
         {data && (
@@ -286,6 +286,7 @@ function App() {
               onNodeClick={setSelectedNode} 
               matchedNodeIds={matchedNodeIds}
               dimUnmatched={!filters.hideNonMatching && matchedNodeIds.size !== data.nodes.length}
+              selectedNodeId={selectedNode?.id}
             />
             <Sidebar 
               node={selectedNode} 

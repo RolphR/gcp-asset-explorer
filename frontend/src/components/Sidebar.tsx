@@ -1,4 +1,5 @@
-import { X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useState } from 'react';
+import { X, ChevronLeft, ChevronRight, ChevronsDownUp, ChevronsUpDown } from 'lucide-react';
 import type { GraphNode } from '../utils/parser';
 import JsonView from '@uiw/react-json-view';
 
@@ -11,10 +12,12 @@ interface SidebarProps {
 }
 
 export function Sidebar({ node, onClose, onNavigate, hasNext, hasPrev }: SidebarProps) {
+  const [jsonCollapsed, setJsonCollapsed] = useState<number | false>(false);
+
   if (!node) return null;
 
   return (
-    <div className="fixed right-0 top-0 h-full w-[32rem] bg-white shadow-xl flex flex-col z-50 transform transition-transform border-l border-gray-200">
+    <div className="absolute right-0 top-0 bottom-0 w-[32rem] bg-white shadow-xl flex flex-col z-50 transform transition-transform border-l border-gray-200">
       <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-gray-50">
         <h2 className="text-lg font-semibold text-gray-800 truncate pr-4" title={node.displayName || node.id}>
           {node.displayName || node.id}
@@ -84,13 +87,25 @@ export function Sidebar({ node, onClose, onNavigate, hasNext, hasPrev }: Sidebar
 
         {node.data && (
           <div className="flex flex-col flex-1 pb-4">
-            <h3 className="text-sm font-medium text-gray-700 mb-2 uppercase tracking-wider">Raw Data</h3>
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-sm font-medium text-gray-700 uppercase tracking-wider">Raw Data</h3>
+              <button 
+                onClick={() => setJsonCollapsed(prev => prev === false ? 1 : false)}
+                className="text-xs flex items-center text-gray-500 hover:text-gray-800 transition-colors"
+              >
+                {jsonCollapsed === false ? (
+                  <><ChevronsDownUp className="w-3 h-3 mr-1" /> Collapse All</>
+                ) : (
+                  <><ChevronsUpDown className="w-3 h-3 mr-1" /> Expand All</>
+                )}
+              </button>
+            </div>
             <div className="bg-white border border-gray-200 rounded-lg p-3 overflow-x-auto">
               <JsonView 
                 value={node.data} 
                 displayDataTypes={false}
                 displayObjectSize={true}
-                collapsed={2}
+                collapsed={jsonCollapsed}
                 style={{ fontSize: '12px', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace' }}
               />
             </div>

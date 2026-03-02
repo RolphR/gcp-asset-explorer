@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Search, Layers, Box, EyeOff, Eye, Filter, MapPin, ArrowDownAZ, ArrowUpAZ, ArrowDown01, ArrowUp01, CheckSquare, ChevronDown, ChevronRight, Network } from 'lucide-react';
+import { Search, Layers, Box, EyeOff, Eye, Filter, MapPin, ArrowDownAZ, ArrowUpAZ, ArrowDown01, ArrowUp01, CheckSquare, ChevronDown, ChevronRight, Network, ChevronLeft } from 'lucide-react';
 
 export interface FilterState {
   freeText: string;
@@ -33,12 +33,13 @@ interface DimensionFilterProps {
   selectedValues: Set<string>;
   onToggle: (value: string) => void;
   onToggleAll: (values: string[], selectAll: boolean) => void;
+  defaultCollapsed?: boolean;
 }
 
-function DimensionFilter({ title, icon, options, selectedValues, onToggle, onToggleAll }: DimensionFilterProps) {
+function DimensionFilter({ title, icon, options, selectedValues, onToggle, onToggleAll, defaultCollapsed = false }: DimensionFilterProps) {
   const [localSearch, setLocalSearch] = useState('');
   const [sortMode, setSortMode] = useState<SortMode>('count_desc');
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(defaultCollapsed);
 
   const cycleSortMode = () => {
     const modes: SortMode[] = ['count_desc', 'count_asc', 'name_asc', 'name_desc'];
@@ -147,6 +148,7 @@ function DimensionFilter({ title, icon, options, selectedValues, onToggle, onTog
 }
 
 export function SearchPanel({ filters, setFilters, availableServices, availableAssetTypes, availableLocations, availableParents }: SearchPanelProps) {
+  const [isPanelCollapsed, setIsPanelCollapsed] = useState(false);
   
   const createToggleHandler = (dimension: 'services' | 'assetTypes' | 'locations' | 'parents') => (value: string) => {
     setFilters(prev => {
@@ -169,13 +171,26 @@ export function SearchPanel({ filters, setFilters, availableServices, availableA
     });
   };
 
+  if (isPanelCollapsed) {
+    return (
+      <div className="absolute top-4 left-4 bg-white shadow-lg rounded-lg border border-gray-200 z-20">
+        <button onClick={() => setIsPanelCollapsed(false)} className="p-3 hover:bg-gray-50 rounded-lg transition-colors flex items-center justify-center" title="Expand Filters">
+          <Filter className="w-5 h-5 text-gray-500" />
+        </button>
+      </div>
+    );
+  }
+
   return (
-    <div className="absolute top-4 left-4 min-w-[20rem] max-w-[50vw] bg-white shadow-lg rounded-lg border border-gray-200 flex flex-col max-h-[calc(100vh-8rem)] z-20 resize overflow-hidden">
-      <div className="p-4 border-b border-gray-200 shrink-0">
+    <div className="absolute top-4 left-4 w-1/5 min-w-[20rem] max-w-[50vw] bg-white shadow-lg rounded-lg border border-gray-200 flex flex-col max-h-[calc(100vh-8rem)] z-20 resize overflow-hidden">
+      <div className="p-4 border-b border-gray-200 shrink-0 flex items-center justify-between">
         <h2 className="text-lg font-semibold text-gray-800 flex items-center">
           <Filter className="w-5 h-5 mr-2 text-gray-500" />
           Filters
         </h2>
+        <button onClick={() => setIsPanelCollapsed(true)} className="p-1 hover:bg-gray-100 rounded transition-colors" title="Collapse Panel">
+          <ChevronLeft className="w-5 h-5 text-gray-500" />
+        </button>
       </div>
 
       <div className="p-4 overflow-y-auto flex-1 space-y-6">
@@ -243,6 +258,7 @@ export function SearchPanel({ filters, setFilters, availableServices, availableA
           selectedValues={filters.parents}
           onToggle={createToggleHandler('parents')}
           onToggleAll={createToggleAllHandler('parents')}
+          defaultCollapsed={true}
         />
       </div>
       

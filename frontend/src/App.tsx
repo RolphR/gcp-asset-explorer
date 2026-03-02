@@ -17,6 +17,7 @@ function App() {
     services: new Set(),
     assetTypes: new Set(),
     locations: new Set(),
+    parents: new Set(),
     hideNonMatching: false
   });
   
@@ -40,38 +41,44 @@ function App() {
       services: new Set(),
       assetTypes: new Set(),
       locations: new Set(),
+      parents: new Set(),
       hideNonMatching: false
     });
   };
 
   const globalOptions = useMemo(() => {
-    if (!data) return { services: [], assetTypes: [], locations: [] };
+    if (!data) return { services: [], assetTypes: [], locations: [], parents: [] };
     const services = new Set<string>();
     const assetTypes = new Set<string>();
     const locations = new Set<string>();
+    const parents = new Set<string>();
 
     for (const node of data.nodes) {
       services.add(node.group);
       if (node.assetType) assetTypes.add(node.assetType);
       if (node.location) locations.add(node.location);
+      if (node.parent) parents.add(node.parent);
     }
     return {
       services: Array.from(services),
       assetTypes: Array.from(assetTypes),
-      locations: Array.from(locations)
+      locations: Array.from(locations),
+      parents: Array.from(parents)
     };
   }, [data]);
 
   const filterOptions = useMemo(() => {
-    if (!data) return { services: [], assetTypes: [], locations: [] };
+    if (!data) return { services: [], assetTypes: [], locations: [], parents: [] };
 
     const serviceCounts = new Map<string, number>();
     const assetTypeCounts = new Map<string, number>();
     const locationCounts = new Map<string, number>();
+    const parentCounts = new Map<string, number>();
 
     globalOptions.services.forEach(s => serviceCounts.set(s, 0));
     globalOptions.assetTypes.forEach(a => assetTypeCounts.set(a, 0));
     globalOptions.locations.forEach(l => locationCounts.set(l, 0));
+    globalOptions.parents.forEach(p => parentCounts.set(p, 0));
 
     const lowerText = debouncedFreeText.toLowerCase();
 
@@ -79,6 +86,7 @@ function App() {
       const nodeService = node.group;
       const nodeAssetType = node.assetType || 'unknown';
       const nodeLocation = node.location || 'global';
+      const nodeParent = node.parent || '';
 
       // Check text match
       let textMatch = true;
@@ -95,20 +103,22 @@ function App() {
       const serviceMatch = filters.services.size === 0 || filters.services.has(nodeService);
       const assetTypeMatch = filters.assetTypes.size === 0 || filters.assetTypes.has(nodeAssetType);
       const locationMatch = filters.locations.size === 0 || filters.locations.has(nodeLocation);
+      const parentMatch = filters.parents.size === 0 || filters.parents.has(nodeParent);
 
-      // To count for services: matches location, assetType, and text
-      if (assetTypeMatch && locationMatch && textMatch) {
+      if (assetTypeMatch && locationMatch && parentMatch && textMatch) {
         serviceCounts.set(nodeService, (serviceCounts.get(nodeService) || 0) + 1);
       }
 
-      // To count for assetTypes: matches service, location, and text
-      if (serviceMatch && locationMatch && textMatch) {
+      if (serviceMatch && locationMatch && parentMatch && textMatch) {
         assetTypeCounts.set(nodeAssetType, (assetTypeCounts.get(nodeAssetType) || 0) + 1);
       }
 
-      // To count for locations: matches service, assetType, and text
-      if (serviceMatch && assetTypeMatch && textMatch) {
+      if (serviceMatch && assetTypeMatch && parentMatch && textMatch) {
         locationCounts.set(nodeLocation, (locationCounts.get(nodeLocation) || 0) + 1);
+      }
+
+      if (serviceMatch && assetTypeMatch && locationMatch && textMatch && nodeParent) {
+        parentCounts.set(nodeParent, (parentCounts.get(nodeParent) || 0) + 1);
       }
     }
 
@@ -122,13 +132,14 @@ function App() {
       services: toOptionArray(serviceCounts),
       assetTypes: toOptionArray(assetTypeCounts),
       locations: toOptionArray(locationCounts),
+      parents: toOptionArray(parentCounts),
     };
-  }, [data, filters.services, filters.assetTypes, filters.locations, debouncedFreeText, globalOptions]);
+  }, [data, filters.services, filters.assetTypes, filters.locations, filters.parents, debouncedFreeText, globalOptions]);
 
   const matchedNodeIds = useMemo(() => {
     if (!data) return new Set<string>();
     
-    if (filters.services.size === 0 && filters.assetTypes.size === 0 && filters.locations.size === 0 && !debouncedFreeText) {
+    if (filters.services.size === 0 && filters.assetTypes.size === 0 && filters.locations.size === 0 && filters.parents.size === 0 && !debouncedFreeText) {
       return new Set(data.nodes.map(n => n.id));
     }
 
@@ -150,6 +161,10 @@ function App() {
         isMatch = false;
       }
 
+      if (isMatch && filters.parents.size > 0 && (!node.parent || !filters.parents.has(node.parent))) {
+        isMatch = false;
+      }
+
       if (isMatch && lowerText) {
         if (node.data) {
           const raw = JSON.stringify(node.data).toLowerCase();
@@ -164,7 +179,7 @@ function App() {
       if (isMatch) matched.add(node.id);
     }
     return matched;
-  }, [data, filters.services, filters.assetTypes, filters.locations, debouncedFreeText]);
+  }, [data, filters.services, filters.assetTypes, filters.locations, filters.parents, debouncedFreeText]);
 
   const visibleData = useMemo(() => {
     if (!data) return null;
@@ -264,6 +279,7 @@ function App() {
               availableServices={filterOptions.services}
               availableAssetTypes={filterOptions.assetTypes}
               availableLocations={filterOptions.locations}
+              availableParents={filterOptions.parents}
             />
             <GraphViewer 
               data={visibleData} 

@@ -23,6 +23,7 @@ function getColor(group: string) {
 
 export function GraphViewer({ data, onNodeClick, matchedNodeIds, dimUnmatched = false }: GraphViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const fgRef = useRef<any>(null);
   const [dimensions, setDimensions] = useState({ width: window.innerWidth, height: window.innerHeight });
 
   useEffect(() => {
@@ -39,6 +40,18 @@ export function GraphViewer({ data, onNodeClick, matchedNodeIds, dimUnmatched = 
     handleResize();
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  useEffect(() => {
+    if (!dimUnmatched && fgRef.current) {
+      fgRef.current.d3ReheatSimulation();
+      const timer = setTimeout(() => {
+        if (fgRef.current) {
+          fgRef.current.zoomToFit(400, 50);
+        }
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [data, dimUnmatched]);
 
   const drawNode = (node: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
     const isMatched = !dimUnmatched || !matchedNodeIds || matchedNodeIds.has(node.id);
@@ -131,6 +144,7 @@ export function GraphViewer({ data, onNodeClick, matchedNodeIds, dimUnmatched = 
   return (
     <div ref={containerRef} className="w-full h-full bg-gray-50">
       <ForceGraph2D
+        ref={fgRef}
         width={dimensions.width}
         height={dimensions.height}
         graphData={data}

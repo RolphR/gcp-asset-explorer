@@ -1,11 +1,12 @@
 import React, { useState, useMemo } from 'react';
-import { Search, Layers, Box, EyeOff, Eye, Filter, MapPin, ArrowDownAZ, ArrowUpAZ, ArrowDown01, ArrowUp01, CheckSquare } from 'lucide-react';
+import { Search, Layers, Box, EyeOff, Eye, Filter, MapPin, ArrowDownAZ, ArrowUpAZ, ArrowDown01, ArrowUp01, CheckSquare, ChevronDown, ChevronRight, Network } from 'lucide-react';
 
 export interface FilterState {
   freeText: string;
   services: Set<string>;
   assetTypes: Set<string>;
   locations: Set<string>;
+  parents: Set<string>;
   hideNonMatching: boolean;
 }
 
@@ -20,6 +21,7 @@ interface SearchPanelProps {
   availableServices: FilterOption[];
   availableAssetTypes: FilterOption[];
   availableLocations: FilterOption[];
+  availableParents: FilterOption[];
 }
 
 type SortMode = 'count_desc' | 'count_asc' | 'name_asc' | 'name_desc';
@@ -36,6 +38,7 @@ interface DimensionFilterProps {
 function DimensionFilter({ title, icon, options, selectedValues, onToggle, onToggleAll }: DimensionFilterProps) {
   const [localSearch, setLocalSearch] = useState('');
   const [sortMode, setSortMode] = useState<SortMode>('count_desc');
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
   const cycleSortMode = () => {
     const modes: SortMode[] = ['count_desc', 'count_asc', 'name_asc', 'name_desc'];
@@ -92,9 +95,15 @@ function DimensionFilter({ title, icon, options, selectedValues, onToggle, onTog
   return (
     <div>
       <div className="flex items-center justify-between mb-2">
-        <label className="text-sm font-medium text-gray-700 flex items-center">
+        <label 
+          className="text-sm font-medium text-gray-700 flex items-center cursor-pointer select-none group"
+          onClick={() => setIsCollapsed(!isCollapsed)}
+        >
           {icon}
-          <span className="ml-1">{title} ({options.length})</span>
+          <span className="ml-1 mr-1">{title} ({options.length})</span>
+          <span className="text-gray-400 group-hover:text-gray-600 transition-colors">
+            {isCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+          </span>
         </label>
         <div className="flex items-center gap-1">
           <button onClick={handleToggleAll} className="p-1 hover:bg-gray-100 rounded" title="Toggle All Visible">
@@ -105,36 +114,41 @@ function DimensionFilter({ title, icon, options, selectedValues, onToggle, onTog
           </button>
         </div>
       </div>
-      <input
-        type="text"
-        className="w-full px-2 py-1 mb-2 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
-        placeholder={`Filter ${title.toLowerCase()}...`}
-        value={localSearch}
-        onChange={(e) => setLocalSearch(e.target.value)}
-      />
-      <div className="max-h-40 overflow-y-auto border border-gray-200 rounded-md bg-gray-50 p-2 space-y-1">
-        {filteredOptions.length === 0 && <p className="text-xs text-gray-500 p-1">No options match filter.</p>}
-        {filteredOptions.map(option => (
-          <label key={option.value} className="flex items-center space-x-2 cursor-pointer p-1 hover:bg-gray-100 rounded">
-            <input
-              type="checkbox"
-              checked={selectedValues.has(option.value)}
-              onChange={() => onToggle(option.value)}
-              className="rounded text-blue-600 focus:ring-blue-500"
-            />
-            <span className="text-sm text-gray-700 truncate" title={option.value}>
-              {option.value} <span className="text-gray-400">({option.count})</span>
-            </span>
-          </label>
-        ))}
-      </div>
+      
+      {!isCollapsed && (
+        <>
+          <input
+            type="text"
+            className="w-full px-2 py-1 mb-2 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+            placeholder={`Filter ${title.toLowerCase()}...`}
+            value={localSearch}
+            onChange={(e) => setLocalSearch(e.target.value)}
+          />
+          <div className="max-h-40 overflow-y-auto border border-gray-200 rounded-md bg-gray-50 p-2 space-y-1">
+            {filteredOptions.length === 0 && <p className="text-xs text-gray-500 p-1">No options match filter.</p>}
+            {filteredOptions.map(option => (
+              <label key={option.value} className="flex items-center space-x-2 cursor-pointer p-1 hover:bg-gray-100 rounded">
+                <input
+                  type="checkbox"
+                  checked={selectedValues.has(option.value)}
+                  onChange={() => onToggle(option.value)}
+                  className="rounded text-blue-600 focus:ring-blue-500"
+                />
+                <span className="text-sm text-gray-700 truncate" title={option.value}>
+                  {option.value} <span className="text-gray-400">({option.count})</span>
+                </span>
+              </label>
+            ))}
+          </div>
+        </>
+      )}
     </div>
   );
 }
 
-export function SearchPanel({ filters, setFilters, availableServices, availableAssetTypes, availableLocations }: SearchPanelProps) {
+export function SearchPanel({ filters, setFilters, availableServices, availableAssetTypes, availableLocations, availableParents }: SearchPanelProps) {
   
-  const createToggleHandler = (dimension: 'services' | 'assetTypes' | 'locations') => (value: string) => {
+  const createToggleHandler = (dimension: 'services' | 'assetTypes' | 'locations' | 'parents') => (value: string) => {
     setFilters(prev => {
       const next = new Set(prev[dimension]);
       if (next.has(value)) next.delete(value);
@@ -143,7 +157,7 @@ export function SearchPanel({ filters, setFilters, availableServices, availableA
     });
   };
 
-  const createToggleAllHandler = (dimension: 'services' | 'assetTypes' | 'locations') => (values: string[], selectAll: boolean) => {
+  const createToggleAllHandler = (dimension: 'services' | 'assetTypes' | 'locations' | 'parents') => (values: string[], selectAll: boolean) => {
     setFilters(prev => {
       const next = new Set(prev[dimension]);
       if (selectAll) {
@@ -156,7 +170,7 @@ export function SearchPanel({ filters, setFilters, availableServices, availableA
   };
 
   return (
-    <div className="absolute top-4 left-4 min-w-[20rem] max-w-[50vw] bg-white shadow-lg rounded-lg border border-gray-200 flex flex-col max-h-[calc(100vh-8rem)] z-20 resize-x overflow-hidden">
+    <div className="absolute top-4 left-4 min-w-[20rem] max-w-[50vw] bg-white shadow-lg rounded-lg border border-gray-200 flex flex-col max-h-[calc(100vh-8rem)] z-20 resize overflow-hidden">
       <div className="p-4 border-b border-gray-200 shrink-0">
         <h2 className="text-lg font-semibold text-gray-800 flex items-center">
           <Filter className="w-5 h-5 mr-2 text-gray-500" />
@@ -221,11 +235,20 @@ export function SearchPanel({ filters, setFilters, availableServices, availableA
           onToggle={createToggleHandler('assetTypes')}
           onToggleAll={createToggleAllHandler('assetTypes')}
         />
+
+        <DimensionFilter
+          title="Parents"
+          icon={<Network className="w-4 h-4 text-gray-400" />}
+          options={availableParents}
+          selectedValues={filters.parents}
+          onToggle={createToggleHandler('parents')}
+          onToggleAll={createToggleAllHandler('parents')}
+        />
       </div>
       
       <div className="p-4 border-t border-gray-200 bg-gray-50 shrink-0">
         <button
-          onClick={() => setFilters(prev => ({ ...prev, services: new Set(), assetTypes: new Set(), locations: new Set(), freeText: '' }))}
+          onClick={() => setFilters(prev => ({ ...prev, services: new Set(), assetTypes: new Set(), locations: new Set(), parents: new Set(), freeText: '' }))}
           className="w-full py-2 text-sm font-medium text-gray-600 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
         >
           Clear All Filters

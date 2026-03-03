@@ -90,10 +90,6 @@ function getParent(asset: any): string | string[] {
     return parentName;
   };
 
-  if (assetType === "bigquery.googleapis.com/Dataset" || assetType === "bigquery.googleapis.com/Table") {
-    if (resourceData.id) return fixReference(resourceData.id);
-  }
-
   if (assetType === "compute.googleapis.com/Route") {
     if (resourceData.nextHopVpnTunnel) return fixReference(resourceData.nextHopVpnTunnel);
     if (resourceData.nextHopNetwork) return fixReference(resourceData.nextHopNetwork);

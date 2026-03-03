@@ -3,15 +3,17 @@ import { parseAssetData } from './utils/parser';
 import type { GraphData, GraphNode } from './utils/parser';
 import { Dropzone } from './components/Dropzone';
 import { GraphViewer } from './components/GraphViewer';
+import { ListView } from './components/ListView';
 import { Sidebar } from './components/Sidebar';
 import { SearchPanel, type FilterState } from './components/SearchPanel';
 import { cn } from './utils/cn';
-import { RefreshCw, Download } from 'lucide-react';
+import { RefreshCw, Download, Network, List } from 'lucide-react';
 
 function App() {
   const [data, setData] = useState<GraphData | null>(null);
   const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null);
   const [zoomTrigger, setZoomTrigger] = useState(0);
+  const [viewMode, setViewMode] = useState<'graph' | 'list'>('graph');
 
   const [filters, setFilters] = useState<FilterState>({
     freeText: '',
@@ -29,6 +31,7 @@ function App() {
     return () => clearTimeout(timer);
   }, [filters.freeText]);
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handleFileLoaded = (json: any[]) => {
     const graphData = parseAssetData(json);
     setData(graphData);
@@ -201,7 +204,9 @@ function App() {
     const visibleNodes = data.nodes.filter(n => matchedNodeIds.has(n.id));
     const visibleNodeIds = new Set(visibleNodes.map(n => n.id));
     const visibleLinks = data.links.filter(l => 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       visibleNodeIds.has(typeof l.source === 'object' ? (l.source as any).id : l.source as string) && 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       visibleNodeIds.has(typeof l.target === 'object' ? (l.target as any).id : l.target as string)
     );
 
@@ -237,6 +242,12 @@ function App() {
   const filteredNodes = useMemo(() => {
     if (!data) return [];
     return data.nodes.filter(n => matchedNodeIds.has(n.id) && n.data);
+  }, [data, matchedNodeIds]);
+
+  // Nodes to show in list view: apply filters even if "dim unmatched" is selected in graph
+  const listNodes = useMemo(() => {
+      if (!data) return [];
+      return data.nodes.filter(n => matchedNodeIds.has(n.id));
   }, [data, matchedNodeIds]);
 
   const handleNavigate = (direction: 'next' | 'prev') => {
@@ -276,6 +287,28 @@ function App() {
         <h1 className="text-xl font-semibold text-gray-800">GCP Asset Explorer</h1>
         {data && (
           <div className="flex items-center gap-3">
+             <div className="flex bg-gray-100 p-1 rounded-md mr-2">
+              <button
+                onClick={() => setViewMode('graph')}
+                className={cn(
+                  "p-1.5 rounded-sm transition-all",
+                  viewMode === 'graph' ? "bg-white shadow-sm text-blue-600" : "text-gray-500 hover:text-gray-700"
+                )}
+                title="Graph View"
+              >
+                <Network className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setViewMode('list')}
+                className={cn(
+                  "p-1.5 rounded-sm transition-all",
+                  viewMode === 'list' ? "bg-white shadow-sm text-blue-600" : "text-gray-500 hover:text-gray-700"
+                )}
+                title="List View"
+              >
+                <List className="w-4 h-4" />
+              </button>
+            </div>
             <button
               onClick={handleExport}
               className="flex items-center px-3 py-2 text-sm font-medium text-gray-600 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"
@@ -301,23 +334,34 @@ function App() {
             <Dropzone onFileLoaded={handleFileLoaded} />
           </div>
         ) : visibleData ? (
-          <div className="w-full h-full relative">
-            <SearchPanel 
-              filters={filters} 
-              setFilters={setFilters} 
-              availableServices={filterOptions.services}
-              availableAssetTypes={filterOptions.assetTypes}
-              availableLocations={filterOptions.locations}
-              availableParents={filterOptions.parents}
-            />
-            <GraphViewer 
-              data={visibleData} 
-              onNodeClick={setSelectedNode} 
-              matchedNodeIds={matchedNodeIds}
-              dimUnmatched={!filters.hideNonMatching && matchedNodeIds.size !== data.nodes.length}
-              selectedNodeId={selectedNode?.id}
-              zoomTrigger={zoomTrigger}
-            />
+          <div className="w-full h-full relative flex">
+             <SearchPanel 
+                filters={filters} 
+                setFilters={setFilters} 
+                availableServices={filterOptions.services}
+                availableAssetTypes={filterOptions.assetTypes}
+                availableLocations={filterOptions.locations}
+                availableParents={filterOptions.parents}
+              />
+            
+            <div className="flex-1 relative h-full overflow-hidden">
+                {viewMode === 'graph' ? (
+                  <GraphViewer 
+                    data={visibleData} 
+                    onNodeClick={setSelectedNode} 
+                    matchedNodeIds={matchedNodeIds}
+                    dimUnmatched={!filters.hideNonMatching && matchedNodeIds.size !== data.nodes.length}
+                    selectedNodeId={selectedNode?.id}
+                    zoomTrigger={zoomTrigger}
+                  />
+                ) : (
+                  <ListView 
+                    nodes={listNodes}
+                    onNodeClick={setSelectedNode}
+                  />
+                )}
+            </div>
+
             <Sidebar 
               node={selectedNode} 
               onClose={() => setSelectedNode(null)} 

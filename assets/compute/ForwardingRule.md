@@ -2,8 +2,25 @@
 
 ## Parent
 
-Determine the parent based the following rules:
+A forwarding rule can have multie parents.
+Determine the parents based the following rules:
 
-- If the forwarding rule has a `network` specified, create a single edge pointing to that network.
-- If there is no network, but it has a `target` specified, create a single edge pointing to that target.
-- If neither a network nor a target is specified, log a message indicating an unknown target for the forwarding rule and create a single edge pointing to its default parent.
+- If it has `subnetwork`, use that. Otherwise if it has a `network` specified, use that instead.
+- If it has a `target` specified, add it.
+- If no parents have been selected, use the default parent.
+
+## Scheme
+
+Use the literal `loadBalancingScheme` property.
+
+## Address
+
+Use the literal `IPAddress` property.
+
+## Protocol
+
+Use the literal `IPProtocol` property.
+
+## Ports
+
+Use the literal `portRange` property.

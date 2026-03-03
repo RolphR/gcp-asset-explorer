@@ -12,6 +12,10 @@ export interface GraphNode {
   destRange?: string;
   status?: string;
   relatedAssets?: string[];
+  loadBalancingScheme?: string;
+  IPAddress?: string;
+  IPProtocol?: string;
+  portRange?: string;
 }
 
 export interface GraphEdge {
@@ -44,7 +48,7 @@ function fixReference(field: string): string {
 
 function getRelatedAssets(asset: any): string[] {
   const references = new Set<string>();
-  const ignoredKeys = new Set(['assetType', 'discoveryDocumentUri', 'location', 'name', 'region', 'selfLink', 'zone']);
+  const ignoredKeys = new Set(['assetType', 'discoveryDocumentUri', 'location', 'name', 'region', 'selfLink', 'selfLinkWithId', 'zone']);
 
   function traverse(obj: any) {
     if (typeof obj === 'string') {
@@ -111,9 +115,13 @@ function getParent(asset: any): string | string[] {
   }
 
   if (assetType === "compute.googleapis.com/ForwardingRule") {
-    if (resourceData.network) return fixReference(resourceData.network);
-    if (resourceData.target) return fixReference(resourceData.target);
-    console.log(`Unknown target for forwarding rule ${asset.name}...`);
+    const parents: string[] = [];
+    if (resourceData.subnetwork) parents.push(fixReference(resourceData.subnetwork));
+    else if (resourceData.network) parents.push(fixReference(resourceData.network));
+
+    if (resourceData.target) parents.push(fixReference(resourceData.target));
+
+    if (parents.length > 0) return parents;
   }
 
   if (assetType === "compute.googleapis.com/Address") {
@@ -172,6 +180,18 @@ export function parseAssetData(rawJson: any[]): GraphData {
       status = resourceData.status;
     }
 
+    let loadBalancingScheme: string | undefined;
+    let IPAddress: string | undefined;
+    let IPProtocol: string | undefined;
+    let portRange: string | undefined;
+
+    if (assetType === "compute.googleapis.com/ForwardingRule") {
+      loadBalancingScheme = resourceData.loadBalancingScheme;
+      IPAddress = resourceData.IPAddress;
+      IPProtocol = resourceData.IPProtocol;
+      portRange = resourceData.portRange;
+    }
+
     const related = getRelatedAssets(asset);
 
     nodes.push({
@@ -187,6 +207,10 @@ export function parseAssetData(rawJson: any[]): GraphData {
       ...(cidr && { cidr }),
       ...(destRange && { destRange }),
       ...(status && { status }),
+      ...(loadBalancingScheme && { loadBalancingScheme }),
+      ...(IPAddress && { IPAddress }),
+      ...(IPProtocol && { IPProtocol }),
+      ...(portRange && { portRange }),
       relatedAssets: related,
     });
     nodesSet.add(sourceName);

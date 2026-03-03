@@ -64,6 +64,7 @@ Determine these references by applying the following strategy:
    - `name`
    - `region`
    - `selfLink`
+   - `selfLinkWithId`
    - `zone`
 3. If it looks like a reference to an existing asset, proceed.
    Otherwise, ignore it. ignore it.

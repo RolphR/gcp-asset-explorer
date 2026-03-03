@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import type { GraphNode } from '../utils/parser';
 import { getAllColumns, getCellValue } from '../utils/columnUtils';
 import { ColumnConfigModal } from './ColumnConfigModal';

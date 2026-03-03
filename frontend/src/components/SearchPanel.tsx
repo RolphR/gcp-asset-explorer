@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
-import { Search, Layers, Box, EyeOff, Eye, Filter, MapPin, ArrowDownAZ, ArrowUpAZ, ArrowDown01, ArrowUp01, CheckSquare, ChevronDown, ChevronRight, Network, ChevronLeft } from 'lucide-react';
+import { Search, Layers, Box, EyeOff, Eye, Filter, MapPin, ArrowDownAZ, ArrowUpAZ, ArrowDown01, ArrowUp01, CheckSquare, ChevronDown, ChevronRight, Network, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
+import { cn } from '../utils/cn';
 
 export interface FilterState {
   freeText: string;
@@ -149,6 +150,7 @@ function DimensionFilter({ title, icon, options, selectedValues, onToggle, onTog
 
 export function SearchPanel({ filters, setFilters, availableServices, availableAssetTypes, availableLocations, availableParents }: SearchPanelProps) {
   const [isPanelCollapsed, setIsPanelCollapsed] = useState(false);
+  const [width, setWidth] = useState(320);
   
   const createToggleHandler = (dimension: 'services' | 'assetTypes' | 'locations' | 'parents') => (value: string) => {
     setFilters(prev => {
@@ -171,105 +173,142 @@ export function SearchPanel({ filters, setFilters, availableServices, availableA
     });
   };
 
-  if (isPanelCollapsed) {
-    return (
-      <div className="absolute top-4 left-4 bg-white shadow-lg rounded-lg border border-gray-200 z-20">
-        <button onClick={() => setIsPanelCollapsed(false)} className="p-3 hover:bg-gray-50 rounded-lg transition-colors flex items-center justify-center" title="Expand Filters">
-          <Filter className="w-5 h-5 text-gray-500" />
-        </button>
-      </div>
-    );
-  }
+  const handleMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startWidth = width;
+
+    const handleMouseMove = (moveEvent: MouseEvent) => {
+      const deltaX = moveEvent.clientX - startX;
+      setWidth(Math.max(200, Math.min(startWidth + deltaX, window.innerWidth * 0.5)));
+    };
+
+    const handleMouseUp = () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+  };
 
   return (
-    <div className="absolute top-4 left-4 w-1/5 min-w-[20rem] max-w-[50vw] bg-white shadow-lg rounded-lg border border-gray-200 flex flex-col max-h-[calc(100vh-8rem)] z-20 resize overflow-hidden">
-      <div className="p-4 border-b border-gray-200 shrink-0 flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-gray-800 flex items-center">
-          <Filter className="w-5 h-5 mr-2 text-gray-500" />
-          Filters
-        </h2>
-        <button onClick={() => setIsPanelCollapsed(true)} className="p-1 hover:bg-gray-100 rounded transition-colors" title="Collapse Panel">
-          <ChevronLeft className="w-5 h-5 text-gray-500" />
-        </button>
-      </div>
-
-      <div className="p-4 overflow-y-auto flex-1 space-y-6">
-        {/* Free Text Search */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center">
-            <Search className="w-4 h-4 mr-1 text-gray-400" />
-            Search Properties
-          </label>
-          <input
-            type="text"
-            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="Search raw JSON..."
-            value={filters.freeText}
-            onChange={(e) => setFilters(prev => ({ ...prev, freeText: e.target.value }))}
-          />
-        </div>
-
-        {/* Visibility Toggle */}
-        <div className="flex items-center justify-between bg-gray-50 p-3 rounded-md border border-gray-100">
-          <span className="text-sm font-medium text-gray-700">Filter Mode</span>
-          <button
-            onClick={() => setFilters(prev => ({ ...prev, hideNonMatching: !prev.hideNonMatching }))}
-            className="flex items-center text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
-          >
-            {filters.hideNonMatching ? (
-              <><EyeOff className="w-4 h-4 mr-1" /> Hide Unmatched</>
-            ) : (
-              <><Eye className="w-4 h-4 mr-1" /> Dim Unmatched</>
-            )}
-          </button>
-        </div>
-
-        <DimensionFilter
-          title="Locations"
-          icon={<MapPin className="w-4 h-4 text-gray-400" />}
-          options={availableLocations}
-          selectedValues={filters.locations}
-          onToggle={createToggleHandler('locations')}
-          onToggleAll={createToggleAllHandler('locations')}
+    <div 
+      className={cn(
+        "relative h-full bg-white border-r border-gray-200 flex flex-col z-20 shrink-0",
+        // When collapsed, we use a fixed width class. When expanded, we rely on the inline style for width.
+        // We still need transition when collapsing/expanding.
+        isPanelCollapsed ? "transition-all duration-300 ease-in-out w-12" : "transition-none"
+      )}
+      style={!isPanelCollapsed ? { width: `${width}px` } : {}}
+    >
+      {!isPanelCollapsed && (
+        <div 
+          className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-500 hover:opacity-50 transition-colors z-50 translate-x-0.5"
+          onMouseDown={handleMouseDown}
         />
+      )}
 
-        <DimensionFilter
-          title="Services"
-          icon={<Layers className="w-4 h-4 text-gray-400" />}
-          options={availableServices}
-          selectedValues={filters.services}
-          onToggle={createToggleHandler('services')}
-          onToggleAll={createToggleAllHandler('services')}
-        />
-
-        <DimensionFilter
-          title="Asset Types"
-          icon={<Box className="w-4 h-4 text-gray-400" />}
-          options={availableAssetTypes}
-          selectedValues={filters.assetTypes}
-          onToggle={createToggleHandler('assetTypes')}
-          onToggleAll={createToggleAllHandler('assetTypes')}
-        />
-
-        <DimensionFilter
-          title="Parents"
-          icon={<Network className="w-4 h-4 text-gray-400" />}
-          options={availableParents}
-          selectedValues={filters.parents}
-          onToggle={createToggleHandler('parents')}
-          onToggleAll={createToggleAllHandler('parents')}
-          defaultCollapsed={true}
-        />
-      </div>
-      
-      <div className="p-4 border-t border-gray-200 bg-gray-50 shrink-0">
+      <div className={cn(
+        "flex items-center shrink-0 h-14",
+        isPanelCollapsed ? "justify-center" : "justify-between px-4 border-b border-gray-200"
+      )}>
+        {!isPanelCollapsed && (
+          <h2 className="text-lg font-semibold text-gray-800 flex items-center truncate">
+            <Filter className="w-5 h-5 mr-2 text-gray-500 shrink-0" />
+            Filters
+          </h2>
+        )}
         <button
-          onClick={() => setFilters(prev => ({ ...prev, services: new Set(), assetTypes: new Set(), locations: new Set(), parents: new Set(), freeText: '' }))}
-          className="w-full py-2 text-sm font-medium text-gray-600 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+          onClick={() => setIsPanelCollapsed(!isPanelCollapsed)}
+          className="p-1.5 hover:bg-gray-100 rounded-md transition-colors text-gray-500 hover:text-gray-700"
+          title={isPanelCollapsed ? "Expand Filters" : "Collapse Filters"}
         >
-          Clear All Filters
+          {isPanelCollapsed ? <PanelLeftOpen className="w-5 h-5" /> : <PanelLeftClose className="w-5 h-5" />}
         </button>
       </div>
+
+      {!isPanelCollapsed && (
+        <>
+          <div className="flex-1 overflow-y-auto p-4 space-y-6">
+            {/* Free Text Search */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center">
+                <Search className="w-4 h-4 mr-1 text-gray-400" />
+                Search Properties
+              </label>
+              <input
+                type="text"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Search raw JSON..."
+                value={filters.freeText}
+                onChange={(e) => setFilters(prev => ({ ...prev, freeText: e.target.value }))}
+              />
+            </div>
+
+            {/* Visibility Toggle */}
+            <div className="flex items-center justify-between bg-gray-50 p-3 rounded-md border border-gray-100">
+              <span className="text-sm font-medium text-gray-700">Filter Mode</span>
+              <button
+                onClick={() => setFilters(prev => ({ ...prev, hideNonMatching: !prev.hideNonMatching }))}
+                className="flex items-center text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
+              >
+                {filters.hideNonMatching ? (
+                  <><EyeOff className="w-4 h-4 mr-1" /> Hide Unmatched</>
+                ) : (
+                  <><Eye className="w-4 h-4 mr-1" /> Dim Unmatched</>
+                )}
+              </button>
+            </div>
+
+            <DimensionFilter
+              title="Locations"
+              icon={<MapPin className="w-4 h-4 text-gray-400" />}
+              options={availableLocations}
+              selectedValues={filters.locations}
+              onToggle={createToggleHandler('locations')}
+              onToggleAll={createToggleAllHandler('locations')}
+            />
+
+            <DimensionFilter
+              title="Services"
+              icon={<Layers className="w-4 h-4 text-gray-400" />}
+              options={availableServices}
+              selectedValues={filters.services}
+              onToggle={createToggleHandler('services')}
+              onToggleAll={createToggleAllHandler('services')}
+            />
+
+            <DimensionFilter
+              title="Asset Types"
+              icon={<Box className="w-4 h-4 text-gray-400" />}
+              options={availableAssetTypes}
+              selectedValues={filters.assetTypes}
+              onToggle={createToggleHandler('assetTypes')}
+              onToggleAll={createToggleAllHandler('assetTypes')}
+            />
+
+            <DimensionFilter
+              title="Parents"
+              icon={<Network className="w-4 h-4 text-gray-400" />}
+              options={availableParents}
+              selectedValues={filters.parents}
+              onToggle={createToggleHandler('parents')}
+              onToggleAll={createToggleAllHandler('parents')}
+              defaultCollapsed={true}
+            />
+          </div>
+          
+          <div className="p-4 border-t border-gray-200 bg-gray-50 shrink-0">
+            <button
+              onClick={() => setFilters(prev => ({ ...prev, services: new Set(), assetTypes: new Set(), locations: new Set(), parents: new Set(), freeText: '' }))}
+              className="w-full py-2 text-sm font-medium text-gray-600 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+            >
+              Clear All Filters
+            </button>
+          </div>
+        </>
+      )}
     </div>
   );
 }

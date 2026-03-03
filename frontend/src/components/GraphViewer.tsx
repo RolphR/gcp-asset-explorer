@@ -29,18 +29,18 @@ export function GraphViewer({ data, onNodeClick, matchedNodeIds, dimUnmatched = 
   const [dimensions, setDimensions] = useState({ width: window.innerWidth, height: window.innerHeight });
 
   useEffect(() => {
-    const handleResize = () => {
-      if (containerRef.current) {
-        setDimensions({
-          width: containerRef.current.clientWidth,
-          height: containerRef.current.clientHeight
-        });
+    if (!containerRef.current) return;
+
+    const resizeObserver = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const { width, height } = entry.contentRect;
+        setDimensions({ width, height });
       }
-    };
+    });
+
+    resizeObserver.observe(containerRef.current);
     
-    window.addEventListener('resize', handleResize);
-    handleResize();
-    return () => window.removeEventListener('resize', handleResize);
+    return () => resizeObserver.disconnect();
   }, []);
 
   useEffect(() => {

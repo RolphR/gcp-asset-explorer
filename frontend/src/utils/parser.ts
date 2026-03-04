@@ -77,6 +77,32 @@ function getRelatedAssets(asset: any): string[] {
   return Array.from(references).sort();
 }
 
+function findValuesByKeys(obj: any, keys: Set<string>): string[] {
+  const found: string[] = [];
+
+  function traverse(current: any) {
+    if (!current || typeof current !== 'object') return;
+
+    for (const [key, value] of Object.entries(current)) {
+      if (keys.has(key)) {
+        if (typeof value === 'string') {
+          found.push(value);
+        } else if (Array.isArray(value)) {
+          for (const item of value) {
+            if (typeof item === 'string') {
+              found.push(item);
+            }
+          }
+        }
+      }
+      traverse(value);
+    }
+  }
+
+  traverse(obj);
+  return found;
+}
+
 function getParent(asset: any): string | string[] {
   const assetType = asset.assetType;
   const resourceData = asset.resource?.data || {};
@@ -164,6 +190,48 @@ function getParent(asset: any): string | string[] {
     }
     if (resourceData.subnetwork) return fixReference(resourceData.subnetwork);
     if (resourceData.network) return fixReference(resourceData.network);
+    return getGenericParent();
+  }
+
+  if (assetType === "compute.googleapis.com/NetworkEndpointGroup") {
+    if (resourceData.cloudRun?.service) {
+      const match = asset.name.match(
+        /\/\/compute\.googleapis\.com\/projects\/([^\/]+)\/regions\/([^\/]+)\/networkEndpointGroups\//
+      );
+      if (match) {
+        const project = match[1];
+        const location = match[2];
+        const service = resourceData.cloudRun.service;
+        return `//run.googleapis.com/projects/${project}/locations/${location}/services/${service}`;
+      }
+    }
+    return getGenericParent();
+  }
+
+  if (assetType === "compute.googleapis.com/RegionBackendService") {
+    const parents: string[] = [];
+    if (resourceData.backends && Array.isArray(resourceData.backends)) {
+      for (const backend of resourceData.backends) {
+        if (backend.group) {
+          parents.push(fixReference(backend.group));
+        }
+      }
+    }
+    if (parents.length > 0) return Array.from(new Set(parents));
+    return getGenericParent();
+  }
+
+  if (assetType === "compute.googleapis.com/UrlMap") {
+    const keys = new Set(["backendServices", "defaultService", "service"]);
+    const rawParents = findValuesByKeys(resourceData, keys);
+    if (rawParents.length > 0) {
+      return Array.from(new Set(rawParents.map((p) => fixReference(p))));
+    }
+    return getGenericParent();
+  }
+
+  if (assetType === "compute.googleapis.com/TargetHttpsProxy") {
+    if (resourceData.urlMap) return fixReference(resourceData.urlMap);
     return getGenericParent();
   }
 

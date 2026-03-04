@@ -1,4 +1,4 @@
-# Instructions for compute.googleapis.com/Address
+# Instructions for compute.googleapis.com/GlobalAddress
 
 ## Parent
 

@@ -16,6 +16,7 @@ export interface GraphNode {
   IPAddress?: string;
   IPProtocol?: string;
   portRange?: string;
+  purpose?: string;
 }
 
 export interface GraphEdge {
@@ -120,11 +121,19 @@ function getParent(asset: any): string | string[] {
     if (parents.length > 0) return parents;
   }
 
-  if (assetType === "compute.googleapis.com/Address") {
-    if (resourceData.subnetwork) return fixReference(resourceData.subnetwork);
-    if (resourceData.users && Array.isArray(resourceData.users) && resourceData.users.length > 0) {
+  if (
+    assetType === "compute.googleapis.com/Address" ||
+    assetType === "compute.googleapis.com/GlobalAddress"
+  ) {
+    if (
+      resourceData.users &&
+      Array.isArray(resourceData.users) &&
+      resourceData.users.length > 0
+    ) {
       return resourceData.users.map((u: string) => fixReference(u));
     }
+    if (resourceData.subnetwork) return fixReference(resourceData.subnetwork);
+    if (resourceData.network) return fixReference(resourceData.network);
   }
 
   return getGenericParent();
@@ -183,8 +192,13 @@ export function parseAssetData(rawJson: any[]): GraphData {
     }
 
     let status: string | undefined;
-    if (assetType === "compute.googleapis.com/Address") {
+    let purpose: string | undefined;
+    if (
+      assetType === "compute.googleapis.com/Address" ||
+      assetType === "compute.googleapis.com/GlobalAddress"
+    ) {
       status = resourceData.status;
+      purpose = resourceData.purpose;
     }
 
     let loadBalancingScheme: string | undefined;
@@ -214,6 +228,7 @@ export function parseAssetData(rawJson: any[]): GraphData {
       ...(cidr && { cidr }),
       ...(destRange && { destRange }),
       ...(status && { status }),
+      ...(purpose && { purpose }),
       ...(loadBalancingScheme && { loadBalancingScheme }),
       ...(IPAddress && { IPAddress }),
       ...(IPProtocol && { IPProtocol }),

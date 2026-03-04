@@ -91,11 +91,38 @@ function getParent(asset: any): string | string[] {
     return parentName;
   };
 
+  if (assetType === "compute.googleapis.com/Firewall") {
+    if (resourceData.network) return fixReference(resourceData.network);
+    return getGenericParent();
+  }
+
+  if (assetType === "compute.googleapis.com/FirewallPolicy") {
+    const parents: string[] = [];
+    if (resourceData.associations && Array.isArray(resourceData.associations)) {
+      for (const assoc of resourceData.associations) {
+        if (assoc.attachmentTarget) {
+          parents.push(fixReference(assoc.attachmentTarget));
+        }
+      }
+    }
+    const genericParent = getGenericParent();
+    if (genericParent) {
+      parents.push(genericParent);
+    }
+    return parents;
+  }
+
   if (assetType === "compute.googleapis.com/Route") {
     if (resourceData.nextHopVpnTunnel) return fixReference(resourceData.nextHopVpnTunnel);
     if (resourceData.nextHopNetwork) return fixReference(resourceData.nextHopNetwork);
     if (resourceData.nextHopGateway) return fixReference(resourceData.network);
     if (resourceData.nextHopPeering) return fixReference(resourceData.network);
+    // Generic fallback implied if none match? Instructions say "first match wins". 
+    // Assuming if none match, it should fall back to generic parent? 
+    // Actually the generic instruction "Unless explicitly stated, assets have exactly 1 parent" and logic implies fallback.
+    // But specific instructions usually override.
+    // However, if none of the specific properties exist, we should probably fallback to generic parent or return ""?
+    // Based on other patterns, let's try generic parent at the end if no return.
   }
 
   if (
@@ -104,11 +131,13 @@ function getParent(asset: any): string | string[] {
     assetType === "compute.googleapis.com/TargetVpnGateway"
   ) {
     if (resourceData.network) return fixReference(resourceData.network);
+    return getGenericParent();
   }
 
   if (assetType === "compute.googleapis.com/VpnTunnel") {
     if (resourceData.targetVpnGateway) return fixReference(resourceData.targetVpnGateway);
     if (resourceData.network) return fixReference(resourceData.network);
+    return getGenericParent();
   }
 
   if (assetType === "compute.googleapis.com/ForwardingRule") {
@@ -119,6 +148,7 @@ function getParent(asset: any): string | string[] {
     if (resourceData.target) parents.push(fixReference(resourceData.target));
 
     if (parents.length > 0) return parents;
+    return getGenericParent();
   }
 
   if (
@@ -134,6 +164,7 @@ function getParent(asset: any): string | string[] {
     }
     if (resourceData.subnetwork) return fixReference(resourceData.subnetwork);
     if (resourceData.network) return fixReference(resourceData.network);
+    return getGenericParent();
   }
 
   return getGenericParent();

@@ -140,8 +140,19 @@ export function parseAssetData(rawJson: any[]): GraphData {
       continue;
     }
 
-    const sourceName = asset.name;
+    let sourceName = asset.name;
     const assetType = asset.assetType;
+
+    if (assetType === "dns.googleapis.com/ManagedZone") {
+      const parent = asset.resource?.parent;
+      if (parent && parent.startsWith("//cloudresourcemanager.googleapis.com/projects/")) {
+        const projectNumber = parent.split("/").pop();
+        const zoneName = asset.name.split("/").pop();
+        const location = asset.resource?.location || "global";
+        sourceName = `//dns.googleapis.com/projects/${projectNumber}/locations/${location}/managedZones/${zoneName}`;
+      }
+    }
+
     const serviceName = assetType ? assetType.split(".")[0] : "unknown";
     const resourceData = asset.resource?.data || {};
 

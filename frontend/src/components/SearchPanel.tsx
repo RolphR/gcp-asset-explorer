@@ -1,13 +1,19 @@
 import React, { useState, useMemo } from 'react';
-import { Search, Layers, Box, EyeOff, Eye, Filter, MapPin, ArrowDownAZ, ArrowUpAZ, ArrowDown01, ArrowUp01, CheckSquare, ChevronDown, ChevronRight, Network, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
+import { Search, Layers, Box, EyeOff, Eye, Filter, MapPin, ArrowDownAZ, ArrowUpAZ, ArrowDown01, ArrowUp01, CheckSquare, ChevronDown, ChevronRight, Network, PanelLeftClose, PanelLeftOpen, FileText, CaseSensitive, Ban } from 'lucide-react';
 import { cn } from '../utils/cn';
+
+export type SearchMode = 'tokenized' | 'regex' | 'exact';
 
 export interface FilterState {
   freeText: string;
+  searchMode: SearchMode;
+  caseSensitive: boolean;
+  negate: boolean;
   services: Set<string>;
   assetTypes: Set<string>;
   locations: Set<string>;
   parents: Set<string>;
+  assetIds: Set<string>;
   hideNonMatching: boolean;
 }
 
@@ -23,6 +29,7 @@ interface SearchPanelProps {
   availableAssetTypes: FilterOption[];
   availableLocations: FilterOption[];
   availableParents: FilterOption[];
+  availableAssetIds: FilterOption[];
 }
 
 type SortMode = 'count_desc' | 'count_asc' | 'name_asc' | 'name_desc';
@@ -148,11 +155,11 @@ function DimensionFilter({ title, icon, options, selectedValues, onToggle, onTog
   );
 }
 
-export function SearchPanel({ filters, setFilters, availableServices, availableAssetTypes, availableLocations, availableParents }: SearchPanelProps) {
+export function SearchPanel({ filters, setFilters, availableServices, availableAssetTypes, availableLocations, availableParents, availableAssetIds }: SearchPanelProps) {
   const [isPanelCollapsed, setIsPanelCollapsed] = useState(false);
   const [width, setWidth] = useState(320);
   
-  const createToggleHandler = (dimension: 'services' | 'assetTypes' | 'locations' | 'parents') => (value: string) => {
+  const createToggleHandler = (dimension: 'services' | 'assetTypes' | 'locations' | 'parents' | 'assetIds') => (value: string) => {
     setFilters(prev => {
       const next = new Set(prev[dimension]);
       if (next.has(value)) next.delete(value);
@@ -161,7 +168,7 @@ export function SearchPanel({ filters, setFilters, availableServices, availableA
     });
   };
 
-  const createToggleAllHandler = (dimension: 'services' | 'assetTypes' | 'locations' | 'parents') => (values: string[], selectAll: boolean) => {
+  const createToggleAllHandler = (dimension: 'services' | 'assetTypes' | 'locations' | 'parents' | 'assetIds') => (values: string[], selectAll: boolean) => {
     setFilters(prev => {
       const next = new Set(prev[dimension]);
       if (selectAll) {
@@ -233,18 +240,79 @@ export function SearchPanel({ filters, setFilters, availableServices, availableA
           <div className="flex-1 overflow-y-auto p-4 space-y-6">
             {/* Free Text Search */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center">
-                <Search className="w-4 h-4 mr-1 text-gray-400" />
-                Search Properties
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-sm font-medium text-gray-700 flex items-center">
+                  <Search className="w-4 h-4 mr-1 text-gray-400" />
+                  Search Properties
+                </label>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => setFilters(prev => ({ ...prev, searchMode: 'exact' }))}
+                    className={cn(
+                      "px-1.5 py-0.5 text-[10px] font-medium rounded border transition-colors",
+                      filters.searchMode === 'exact' ? "bg-blue-50 text-blue-700 border-blue-200" : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
+                    )}
+                    title="Exact Search"
+                  >
+                    Exact
+                  </button>
+                   <button
+                    onClick={() => setFilters(prev => ({ ...prev, searchMode: 'tokenized' }))}
+                    className={cn(
+                      "px-1.5 py-0.5 text-[10px] font-medium rounded border transition-colors",
+                      filters.searchMode === 'tokenized' ? "bg-blue-50 text-blue-700 border-blue-200" : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
+                    )}
+                    title="Tokenized Search (match all words)"
+                  >
+                    Tokenized
+                  </button>
+                  <button
+                    onClick={() => setFilters(prev => ({ ...prev, searchMode: 'regex' }))}
+                    className={cn(
+                      "px-1.5 py-0.5 text-[10px] font-medium rounded border transition-colors",
+                      filters.searchMode === 'regex' ? "bg-blue-50 text-blue-700 border-blue-200" : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
+                    )}
+                    title="Regex Search"
+                  >
+                    Regex
+                  </button>
+                </div>
+              </div>
               <input
                 type="text"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Search raw JSON..."
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2"
+                placeholder={filters.searchMode === 'regex' ? "Regex pattern..." : "Search..."}
                 value={filters.freeText}
                 onChange={(e) => setFilters(prev => ({ ...prev, freeText: e.target.value }))}
               />
+              
+              <div className="flex items-center gap-3">
+                 <label className="flex items-center space-x-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={filters.caseSensitive}
+                    onChange={(e) => setFilters(prev => ({ ...prev, caseSensitive: e.target.checked }))}
+                    className="rounded text-blue-600 focus:ring-blue-500 w-3 h-3"
+                  />
+                  <span className="text-xs text-gray-600 flex items-center gap-1">
+                    <CaseSensitive className="w-3 h-3" /> Case Sensitive
+                  </span>
+                </label>
+
+                <label className="flex items-center space-x-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={filters.negate}
+                    onChange={(e) => setFilters(prev => ({ ...prev, negate: e.target.checked }))}
+                    className="rounded text-blue-600 focus:ring-blue-500 w-3 h-3"
+                  />
+                  <span className="text-xs text-gray-600 flex items-center gap-1">
+                    <Ban className="w-3 h-3" /> Negate
+                  </span>
+                </label>
+              </div>
             </div>
+
 
             {/* Visibility Toggle */}
             <div className="flex items-center justify-between bg-gray-50 p-3 rounded-md border border-gray-100">
@@ -297,11 +365,32 @@ export function SearchPanel({ filters, setFilters, availableServices, availableA
               onToggleAll={createToggleAllHandler('parents')}
               defaultCollapsed={true}
             />
+
+            <DimensionFilter
+              title="Asset IDs"
+              icon={<FileText className="w-4 h-4 text-gray-400" />}
+              options={availableAssetIds}
+              selectedValues={filters.assetIds}
+              onToggle={createToggleHandler('assetIds')}
+              onToggleAll={createToggleAllHandler('assetIds')}
+              defaultCollapsed={true}
+            />
           </div>
           
           <div className="p-4 border-t border-gray-200 bg-gray-50 shrink-0">
             <button
-              onClick={() => setFilters(prev => ({ ...prev, services: new Set(), assetTypes: new Set(), locations: new Set(), parents: new Set(), freeText: '' }))}
+              onClick={() => setFilters(prev => ({ 
+                ...prev, 
+                services: new Set(), 
+                assetTypes: new Set(), 
+                locations: new Set(), 
+                parents: new Set(), 
+                assetIds: new Set(),
+                freeText: '',
+                searchMode: 'exact',
+                caseSensitive: false,
+                negate: false
+              }))}
               className="w-full py-2 text-sm font-medium text-gray-600 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
             >
               Clear All Filters

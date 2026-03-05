@@ -17,10 +17,14 @@ function App() {
 
   const [filters, setFilters] = useState<FilterState>({
     freeText: '',
+    searchMode: 'tokenized',
+    caseSensitive: false,
+    negate: false,
     services: new Set(),
     assetTypes: new Set(),
     locations: new Set(),
     parents: new Set(),
+    assetIds: new Set(),
     hideNonMatching: false
   });
   
@@ -42,25 +46,32 @@ function App() {
     setSelectedNode(null);
     setFilters({
       freeText: '',
+      searchMode: 'tokenized',
+      caseSensitive: false,
+      negate: false,
       services: new Set(),
       assetTypes: new Set(),
       locations: new Set(),
       parents: new Set(),
+      assetIds: new Set(),
       hideNonMatching: false
     });
   };
 
   const globalOptions = useMemo(() => {
-    if (!data) return { services: [], assetTypes: [], locations: [], parents: [] };
+    if (!data) return { services: [], assetTypes: [], locations: [], parents: [], assetIds: [] };
     const services = new Set<string>();
     const assetTypes = new Set<string>();
     const locations = new Set<string>();
     const parents = new Set<string>();
+    const assetIds = new Set<string>();
 
     for (const node of data.nodes) {
       services.add(node.group);
       if (node.assetType) assetTypes.add(node.assetType);
       if (node.location) locations.add(node.location);
+      assetIds.add(node.id);
+      
       if (node.parent) {
         if (Array.isArray(node.parent)) {
           node.parent.forEach(p => parents.add(p));
@@ -73,66 +84,102 @@ function App() {
       services: Array.from(services),
       assetTypes: Array.from(assetTypes),
       locations: Array.from(locations),
-      parents: Array.from(parents)
+      parents: Array.from(parents),
+      assetIds: Array.from(assetIds)
     };
   }, [data]);
 
   const filterOptions = useMemo(() => {
-    if (!data) return { services: [], assetTypes: [], locations: [], parents: [] };
+    if (!data) return { services: [], assetTypes: [], locations: [], parents: [], assetIds: [] };
 
     const serviceCounts = new Map<string, number>();
     const assetTypeCounts = new Map<string, number>();
     const locationCounts = new Map<string, number>();
     const parentCounts = new Map<string, number>();
+    const assetIdCounts = new Map<string, number>();
 
     globalOptions.services.forEach(s => serviceCounts.set(s, 0));
     globalOptions.assetTypes.forEach(a => assetTypeCounts.set(a, 0));
     globalOptions.locations.forEach(l => locationCounts.set(l, 0));
     globalOptions.parents.forEach(p => parentCounts.set(p, 0));
+    globalOptions.assetIds.forEach(n => assetIdCounts.set(n, 0));
 
-    const lowerText = debouncedFreeText.toLowerCase();
+    // Calculate text matches once for counts
+    let textMatchedIds: Set<string> | null = null;
+    if (debouncedFreeText) {
+        textMatchedIds = new Set();
+        let regex: RegExp | null = null;
+        if (filters.searchMode === 'regex') {
+            try { regex = new RegExp(debouncedFreeText, filters.caseSensitive ? '' : 'i'); } catch {}
+        }
+        
+        const lowerText = filters.caseSensitive ? debouncedFreeText : debouncedFreeText.toLowerCase();
+        const tokens = filters.searchMode === 'tokenized' ? lowerText.split(/\s+/).filter(t => t.length > 0) : [];
+
+        for (const node of data.nodes) {
+            const rawJson = JSON.stringify(node.data || {});
+            const target = filters.caseSensitive ? rawJson : rawJson.toLowerCase();
+            let isTextMatch = false;
+            
+            if (filters.searchMode === 'regex' && regex) {
+                if (regex.test(filters.caseSensitive ? rawJson : rawJson)) isTextMatch = true;
+            } else if (filters.searchMode === 'exact') {
+                if (target.includes(lowerText)) isTextMatch = true;
+            } else if (filters.searchMode === 'tokenized') {
+                if (tokens.length === 0) {
+                    isTextMatch = true;
+                } else {
+                    isTextMatch = tokens.every(token => target.includes(token));
+                }
+            }
+            
+            if (isTextMatch) textMatchedIds.add(node.id);
+        }
+    }
 
     for (const node of data.nodes) {
-      const nodeService = node.group;
-      const nodeAssetType = node.assetType || 'unknown';
-      const nodeLocation = node.location || 'global';
-      const nodeParent = node.parent || [];
-      const parentArray = Array.isArray(nodeParent) ? nodeParent : [nodeParent].filter(Boolean);
-
-      // Check text match
-      let textMatch = true;
-      if (lowerText) {
-        textMatch = false;
-        if (node.data) {
-          const raw = JSON.stringify(node.data).toLowerCase();
-          if (raw.includes(lowerText)) {
-            textMatch = true;
+       // Check Text Match
+       if (textMatchedIds) {
+          const hasMatch = textMatchedIds.has(node.id);
+          if (filters.negate) {
+             if (hasMatch) continue;
+          } else {
+             if (!hasMatch) continue;
           }
-        }
-      }
+       }
 
-      const serviceMatch = filters.services.size === 0 || filters.services.has(nodeService);
-      const assetTypeMatch = filters.assetTypes.size === 0 || filters.assetTypes.has(nodeAssetType);
-      const locationMatch = filters.locations.size === 0 || filters.locations.has(nodeLocation);
-      const parentMatch = filters.parents.size === 0 || parentArray.some(p => filters.parents.has(p));
+       const serviceMatch = filters.services.size === 0 || filters.services.has(node.group);
+       const assetTypeMatch = filters.assetTypes.size === 0 || (node.assetType && filters.assetTypes.has(node.assetType));
+       const locationMatch = filters.locations.size === 0 || (node.location && filters.locations.has(node.location));
+       
+       const nodeParents = Array.isArray(node.parent) ? node.parent : (node.parent ? [node.parent] : []);
+       const parentMatch = filters.parents.size === 0 || (nodeParents.length > 0 && nodeParents.some(p => filters.parents.has(p)));
 
-      if (assetTypeMatch && locationMatch && parentMatch && textMatch) {
-        serviceCounts.set(nodeService, (serviceCounts.get(nodeService) || 0) + 1);
-      }
+       const assetIdMatch = filters.assetIds.size === 0 || filters.assetIds.has(node.id);
 
-      if (serviceMatch && locationMatch && parentMatch && textMatch) {
-        assetTypeCounts.set(nodeAssetType, (assetTypeCounts.get(nodeAssetType) || 0) + 1);
-      }
+       if (assetTypeMatch && locationMatch && parentMatch && assetIdMatch) {
+         serviceCounts.set(node.group, (serviceCounts.get(node.group) || 0) + 1);
+       }
 
-      if (serviceMatch && assetTypeMatch && parentMatch && textMatch) {
-        locationCounts.set(nodeLocation, (locationCounts.get(nodeLocation) || 0) + 1);
-      }
+       if (serviceMatch && locationMatch && parentMatch && assetIdMatch) {
+         const type = node.assetType || 'unknown';
+         assetTypeCounts.set(type, (assetTypeCounts.get(type) || 0) + 1);
+       }
 
-      if (serviceMatch && assetTypeMatch && locationMatch && textMatch && parentArray.length > 0) {
-        parentArray.forEach(p => {
-          parentCounts.set(p, (parentCounts.get(p) || 0) + 1);
-        });
-      }
+       if (serviceMatch && assetTypeMatch && parentMatch && assetIdMatch) {
+         const loc = node.location || 'global';
+         locationCounts.set(loc, (locationCounts.get(loc) || 0) + 1);
+       }
+
+       if (serviceMatch && assetTypeMatch && locationMatch && assetIdMatch && nodeParents.length > 0) {
+         nodeParents.forEach(p => {
+           parentCounts.set(p, (parentCounts.get(p) || 0) + 1);
+         });
+       }
+
+       if (serviceMatch && assetTypeMatch && locationMatch && parentMatch) {
+          assetIdCounts.set(node.id, (assetIdCounts.get(node.id) || 0) + 1);
+       }
     }
 
     const toOptionArray = (countsMap: Map<string, number>) => {
@@ -146,23 +193,89 @@ function App() {
       assetTypes: toOptionArray(assetTypeCounts),
       locations: toOptionArray(locationCounts),
       parents: toOptionArray(parentCounts),
+      assetIds: toOptionArray(assetIdCounts),
     };
-  }, [data, filters.services, filters.assetTypes, filters.locations, filters.parents, debouncedFreeText, globalOptions]);
+  }, [data, filters, debouncedFreeText, globalOptions]);
 
+
+
+  // fuse was previously declared AFTER matchedNodeIds which used it.
+  // We need to move fuse declaration BEFORE matchedNodeIds.
   const matchedNodeIds = useMemo(() => {
     if (!data) return new Set<string>();
     
-    if (filters.services.size === 0 && filters.assetTypes.size === 0 && filters.locations.size === 0 && filters.parents.size === 0 && !debouncedFreeText) {
+    if (filters.services.size === 0 && 
+        filters.assetTypes.size === 0 && 
+        filters.locations.size === 0 && 
+        filters.parents.size === 0 && 
+        filters.assetIds.size === 0 &&
+        !debouncedFreeText) {
       return new Set(data.nodes.map(n => n.id));
     }
 
     const matched = new Set<string>();
-    const lowerText = debouncedFreeText.toLowerCase();
+    
+    // Pre-calculate text matches
+    let textMatchedIds: Set<string> | null = null;
 
-    for (const node of data.nodes) {
-      let isMatch = true;
-      
-      if (filters.services.size > 0 && !filters.services.has(node.group)) {
+    if (debouncedFreeText) {
+         textMatchedIds = new Set();
+         let regex: RegExp | null = null;
+         if (filters.searchMode === 'regex') {
+           try {
+             regex = new RegExp(debouncedFreeText, filters.caseSensitive ? '' : 'i');
+           } catch (e) {
+             console.warn("Invalid regex:", e);
+           }
+         }
+         
+         const lowerText = filters.caseSensitive ? debouncedFreeText : debouncedFreeText.toLowerCase();
+         // Split on whitespace, punctuation, dashes, underscores, and other non-alphanumeric characters
+         const tokens = filters.searchMode === 'tokenized' ? lowerText.split(/[\s.,;:_\\\/\-]+/).filter(t => t.length > 0) : [];
+
+          for (const node of data.nodes) {
+             let isTextMatch = false;
+             // Search raw JSON for exact/regex to ensure "any field" coverage including structural keys
+             const rawJson = JSON.stringify(node.data || {});
+             const target = filters.caseSensitive ? rawJson : rawJson.toLowerCase();
+             
+             if (filters.searchMode === 'regex' && regex) {
+               if (regex.test(filters.caseSensitive ? rawJson : rawJson)) {
+                  isTextMatch = true;
+               }
+             } else if (filters.searchMode === 'exact') {
+                if (target.includes(lowerText)) {
+                  isTextMatch = true;
+                }
+             } else if (filters.searchMode === 'tokenized') {
+                if (tokens.length === 0) {
+                    isTextMatch = true;
+                } else {
+                    isTextMatch = tokens.every(token => target.includes(token));
+                }
+             }
+ 
+             if (isTextMatch) {
+               textMatchedIds.add(node.id);
+             }
+          }
+     }
+ 
+     for (const node of data.nodes) {
+       let isMatch = true;
+       
+       // Text Filter
+       if (textMatchedIds) {
+          const hasMatch = textMatchedIds.has(node.id);
+          if (filters.negate) {
+             if (hasMatch) isMatch = false;
+          } else {
+             if (!hasMatch) isMatch = false;
+          }
+       }
+       
+       if (isMatch && filters.services.size > 0 && !filters.services.has(node.group)) {
+
         isMatch = false;
       }
       
@@ -181,13 +294,9 @@ function App() {
         }
       }
 
-      if (isMatch && lowerText) {
-        if (node.data) {
-          const raw = JSON.stringify(node.data).toLowerCase();
-          if (!raw.includes(lowerText)) {
-            isMatch = false;
-          }
-        } else {
+      if (isMatch && filters.assetIds.size > 0) {
+        // We now filter names by ID
+        if (!filters.assetIds.has(node.id)) {
           isMatch = false;
         }
       }
@@ -195,7 +304,7 @@ function App() {
       if (isMatch) matched.add(node.id);
     }
     return matched;
-  }, [data, filters.services, filters.assetTypes, filters.locations, filters.parents, debouncedFreeText]);
+  }, [data, filters, debouncedFreeText]);
 
   const visibleData = useMemo(() => {
     if (!data) return null;
@@ -342,6 +451,7 @@ function App() {
                 availableAssetTypes={filterOptions.assetTypes}
                 availableLocations={filterOptions.locations}
                 availableParents={filterOptions.parents}
+                availableAssetIds={filterOptions.assetIds}
               />
             
             <div className="flex-1 relative h-full overflow-hidden">

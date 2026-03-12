@@ -29,6 +29,16 @@ export interface GraphData {
   links: GraphEdge[];
 }
 
+function getProjectNumber(asset: any): string | undefined {
+  if (asset.ancestors && asset.ancestors.length > 0) {
+    const parts = asset.ancestors[0].split("/");
+    if (parts.length === 2 && parts[0] === "projects") {
+      return parts[1];
+    }
+  }
+  return undefined;
+}
+
 function fixReference(field: string): string {
   if (/^(projects|folders|organizations)\/[0-9]+$/.test(field)) {
     return `//cloudresourcemanager.googleapis.com/${field}`;
@@ -235,6 +245,29 @@ function getParent(asset: any): string | string[] {
     return getGenericParent();
   }
 
+  if (assetType === "servicenetworking.googleapis.com/Connection") {
+    const parents: string[] = [];
+    if (
+      resourceData.reservedPeeringRanges &&
+      Array.isArray(resourceData.reservedPeeringRanges)
+    ) {
+      const projectNumber = getProjectNumber(asset);
+      if (projectNumber) {
+        for (const range of resourceData.reservedPeeringRanges) {
+          parents.push(
+            `//compute.googleapis.com/projects/${projectNumber}/global/addresses/${range}`
+          );
+        }
+      }
+    }
+    if (resourceData.network) {
+      parents.push(fixReference(resourceData.network));
+    }
+
+    if (parents.length > 0) return Array.from(new Set(parents));
+    return getGenericParent();
+  }
+
   return getGenericParent();
 }
 
@@ -258,6 +291,17 @@ export function parseAssetData(rawJson: any[]): GraphData {
         const zoneName = asset.name.split("/").pop();
         const location = asset.resource?.location || "global";
         sourceName = `//dns.googleapis.com/projects/${projectNumber}/locations/${location}/managedZones/${zoneName}`;
+      }
+    }
+
+    if (assetType === "compute.googleapis.com/GlobalAddress") {
+      const purpose = asset.resource?.data?.purpose;
+      if (purpose === "VPC_PEERING") {
+        const projectNumber = getProjectNumber(asset);
+        if (projectNumber) {
+          const name = asset.name.split("/").pop();
+          sourceName = `//compute.googleapis.com/projects/${projectNumber}/global/addresses/${name}`;
+        }
       }
     }
 

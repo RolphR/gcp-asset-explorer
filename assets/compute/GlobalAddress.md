@@ -1,5 +1,11 @@
 # Instructions for compute.googleapis.com/GlobalAddress
 
+## ID
+
+If the `purpose` property is exactly `VPC_PEERING` then construct the ID using the following template: `//compute.googleapis.com/projects/<PROJECT_NUMBER>/global/addresses/<NAME>`.
+Project number can be derived from the first ancestor `projects/<PROJECT_NUMBER>`.
+Otherwise use the default ID.
+
 ## Parent
 
 Determine the parent based the following rules:

@@ -22,6 +22,7 @@ function App() {
     negate: false,
     services: new Set(),
     assetTypes: new Set(),
+    projects: new Set(),
     locations: new Set(),
     parents: new Set(),
     assetIds: new Set(),
@@ -51,6 +52,7 @@ function App() {
       negate: false,
       services: new Set(),
       assetTypes: new Set(),
+      projects: new Set(),
       locations: new Set(),
       parents: new Set(),
       assetIds: new Set(),
@@ -59,9 +61,10 @@ function App() {
   };
 
   const globalOptions = useMemo(() => {
-    if (!data) return { services: [], assetTypes: [], locations: [], parents: [], assetIds: [] };
+    if (!data) return { services: [], assetTypes: [], projects: [], locations: [], parents: [], assetIds: [] };
     const services = new Set<string>();
     const assetTypes = new Set<string>();
+    const projects = new Set<string>();
     const locations = new Set<string>();
     const parents = new Set<string>();
     const assetIds = new Set<string>();
@@ -69,6 +72,7 @@ function App() {
     for (const node of data.nodes) {
       services.add(node.group);
       if (node.assetType) assetTypes.add(node.assetType);
+      if (node.project) projects.add(node.project);
       if (node.location) locations.add(node.location);
       assetIds.add(node.id);
       
@@ -83,6 +87,7 @@ function App() {
     return {
       services: Array.from(services),
       assetTypes: Array.from(assetTypes),
+      projects: Array.from(projects),
       locations: Array.from(locations),
       parents: Array.from(parents),
       assetIds: Array.from(assetIds)
@@ -90,16 +95,25 @@ function App() {
   }, [data]);
 
   const filterOptions = useMemo(() => {
-    if (!data) return { services: [], assetTypes: [], locations: [], parents: [], assetIds: [] };
+    if (!data) return { services: [], assetTypes: [], projects: [], locations: [], parents: [], assetIds: [] };
 
     const serviceCounts = new Map<string, number>();
     const assetTypeCounts = new Map<string, number>();
+    const projectCounts = new Map<string, number>();
     const locationCounts = new Map<string, number>();
     const parentCounts = new Map<string, number>();
     const assetIdCounts = new Map<string, number>();
 
+    const idToDisplayName = new Map<string, string>();
+    for (const node of data.nodes) {
+      if (node.displayName) {
+        idToDisplayName.set(node.id, node.displayName);
+      }
+    }
+
     globalOptions.services.forEach(s => serviceCounts.set(s, 0));
     globalOptions.assetTypes.forEach(a => assetTypeCounts.set(a, 0));
+    globalOptions.projects.forEach(p => projectCounts.set(p, 0));
     globalOptions.locations.forEach(l => locationCounts.set(l, 0));
     globalOptions.parents.forEach(p => parentCounts.set(p, 0));
     globalOptions.assetIds.forEach(n => assetIdCounts.set(n, 0));
@@ -150,6 +164,7 @@ function App() {
 
        const serviceMatch = filters.services.size === 0 || filters.services.has(node.group);
        const assetTypeMatch = filters.assetTypes.size === 0 || (node.assetType && filters.assetTypes.has(node.assetType));
+       const projectMatch = filters.projects.size === 0 || (node.project && filters.projects.has(node.project));
        const locationMatch = filters.locations.size === 0 || (node.location && filters.locations.has(node.location));
        
        const nodeParents = Array.isArray(node.parent) ? node.parent : (node.parent ? [node.parent] : []);
@@ -157,43 +172,58 @@ function App() {
 
        const assetIdMatch = filters.assetIds.size === 0 || filters.assetIds.has(node.id);
 
-       if (assetTypeMatch && locationMatch && parentMatch && assetIdMatch) {
+       if (assetTypeMatch && projectMatch && locationMatch && parentMatch && assetIdMatch) {
          serviceCounts.set(node.group, (serviceCounts.get(node.group) || 0) + 1);
        }
 
-       if (serviceMatch && locationMatch && parentMatch && assetIdMatch) {
+       if (serviceMatch && projectMatch && locationMatch && parentMatch && assetIdMatch) {
          const type = node.assetType || 'unknown';
          assetTypeCounts.set(type, (assetTypeCounts.get(type) || 0) + 1);
        }
 
-       if (serviceMatch && assetTypeMatch && parentMatch && assetIdMatch) {
+       if (serviceMatch && assetTypeMatch && locationMatch && parentMatch && assetIdMatch) {
+         if (node.project) {
+           projectCounts.set(node.project, (projectCounts.get(node.project) || 0) + 1);
+         }
+       }
+
+       if (serviceMatch && assetTypeMatch && projectMatch && parentMatch && assetIdMatch) {
          const loc = node.location || 'global';
          locationCounts.set(loc, (locationCounts.get(loc) || 0) + 1);
        }
 
-       if (serviceMatch && assetTypeMatch && locationMatch && assetIdMatch && nodeParents.length > 0) {
+       if (serviceMatch && assetTypeMatch && projectMatch && locationMatch && assetIdMatch && nodeParents.length > 0) {
          nodeParents.forEach(p => {
            parentCounts.set(p, (parentCounts.get(p) || 0) + 1);
          });
        }
 
-       if (serviceMatch && assetTypeMatch && locationMatch && parentMatch) {
+       if (serviceMatch && assetTypeMatch && projectMatch && locationMatch && parentMatch) {
           assetIdCounts.set(node.id, (assetIdCounts.get(node.id) || 0) + 1);
        }
     }
 
-    const toOptionArray = (countsMap: Map<string, number>) => {
+    const toOptionArray = (countsMap: Map<string, number>, useLabel: boolean = false) => {
       return Array.from(countsMap.entries())
-        .map(([value, count]) => ({ value, count }))
-        .sort((a, b) => a.value.localeCompare(b.value));
+        .map(([value, count]) => ({ 
+          value, 
+          count, 
+          label: useLabel ? (idToDisplayName.get(value) || value) : undefined 
+        }))
+        .sort((a, b) => {
+           const aStr = a.label || a.value;
+           const bStr = b.label || b.value;
+           return aStr.localeCompare(bStr);
+        });
     };
 
     return {
       services: toOptionArray(serviceCounts),
       assetTypes: toOptionArray(assetTypeCounts),
+      projects: toOptionArray(projectCounts, true),
       locations: toOptionArray(locationCounts),
-      parents: toOptionArray(parentCounts),
-      assetIds: toOptionArray(assetIdCounts),
+      parents: toOptionArray(parentCounts, true),
+      assetIds: toOptionArray(assetIdCounts, true),
     };
   }, [data, filters, debouncedFreeText, globalOptions]);
 
@@ -206,6 +236,7 @@ function App() {
     
     if (filters.services.size === 0 && 
         filters.assetTypes.size === 0 && 
+        filters.projects.size === 0 &&
         filters.locations.size === 0 && 
         filters.parents.size === 0 && 
         filters.assetIds.size === 0 &&
@@ -280,6 +311,10 @@ function App() {
       }
       
       if (isMatch && filters.assetTypes.size > 0 && (!node.assetType || !filters.assetTypes.has(node.assetType))) {
+        isMatch = false;
+      }
+
+      if (isMatch && filters.projects.size > 0 && (!node.project || !filters.projects.has(node.project))) {
         isMatch = false;
       }
       
@@ -449,6 +484,7 @@ function App() {
                 setFilters={setFilters} 
                 availableServices={filterOptions.services}
                 availableAssetTypes={filterOptions.assetTypes}
+                availableProjects={filterOptions.projects}
                 availableLocations={filterOptions.locations}
                 availableParents={filterOptions.parents}
                 availableAssetIds={filterOptions.assetIds}

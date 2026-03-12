@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Search, Layers, Box, EyeOff, Eye, Filter, MapPin, ArrowDownAZ, ArrowUpAZ, ArrowDown01, ArrowUp01, CheckSquare, ChevronDown, ChevronRight, Network, PanelLeftClose, PanelLeftOpen, FileText, CaseSensitive, Ban } from 'lucide-react';
+import { Search, Layers, Box, EyeOff, Eye, Filter, MapPin, ArrowDownAZ, ArrowUpAZ, ArrowDown01, ArrowUp01, CheckSquare, ChevronDown, ChevronRight, Network, PanelLeftClose, PanelLeftOpen, FileText, CaseSensitive, Ban, Folder } from 'lucide-react';
 import { cn } from '../utils/cn';
 
 export type SearchMode = 'tokenized' | 'regex' | 'exact';
@@ -11,6 +11,7 @@ export interface FilterState {
   negate: boolean;
   services: Set<string>;
   assetTypes: Set<string>;
+  projects: Set<string>;
   locations: Set<string>;
   parents: Set<string>;
   assetIds: Set<string>;
@@ -20,6 +21,7 @@ export interface FilterState {
 export interface FilterOption {
   value: string;
   count: number;
+  label?: string;
 }
 
 interface SearchPanelProps {
@@ -27,6 +29,7 @@ interface SearchPanelProps {
   setFilters: React.Dispatch<React.SetStateAction<FilterState>>;
   availableServices: FilterOption[];
   availableAssetTypes: FilterOption[];
+  availableProjects: FilterOption[];
   availableLocations: FilterOption[];
   availableParents: FilterOption[];
   availableAssetIds: FilterOption[];
@@ -73,20 +76,22 @@ function DimensionFilter({ title, icon, options, selectedValues, onToggle, onTog
     let filtered = options;
     if (localSearch) {
       const lowerSearch = localSearch.toLowerCase();
-      filtered = options.filter(o => o.value.toLowerCase().includes(lowerSearch));
+      filtered = options.filter(o => (o.label || o.value).toLowerCase().includes(lowerSearch));
     }
 
     return [...filtered].sort((a, b) => {
+      const aName = a.label || a.value;
+      const bName = b.label || b.value;
       if (sortMode === 'count_desc') {
         if (a.count !== b.count) return b.count - a.count;
-        return a.value.localeCompare(b.value);
+        return aName.localeCompare(bName);
       } else if (sortMode === 'count_asc') {
         if (a.count !== b.count) return a.count - b.count;
-        return a.value.localeCompare(b.value);
+        return aName.localeCompare(bName);
       } else if (sortMode === 'name_asc') {
-        return a.value.localeCompare(b.value);
+        return aName.localeCompare(bName);
       } else if (sortMode === 'name_desc') {
-        return b.value.localeCompare(a.value);
+        return bName.localeCompare(aName);
       }
       return 0;
     });
@@ -144,7 +149,7 @@ function DimensionFilter({ title, icon, options, selectedValues, onToggle, onTog
                   className="rounded text-blue-600 focus:ring-blue-500"
                 />
                 <span className="text-sm text-gray-700 truncate" title={option.value}>
-                  {option.value} <span className="text-gray-400">({option.count})</span>
+                  {option.label || option.value} <span className="text-gray-400">({option.count})</span>
                 </span>
               </label>
             ))}
@@ -155,11 +160,11 @@ function DimensionFilter({ title, icon, options, selectedValues, onToggle, onTog
   );
 }
 
-export function SearchPanel({ filters, setFilters, availableServices, availableAssetTypes, availableLocations, availableParents, availableAssetIds }: SearchPanelProps) {
+export function SearchPanel({ filters, setFilters, availableServices, availableAssetTypes, availableProjects, availableLocations, availableParents, availableAssetIds }: SearchPanelProps) {
   const [isPanelCollapsed, setIsPanelCollapsed] = useState(false);
   const [width, setWidth] = useState(320);
   
-  const createToggleHandler = (dimension: 'services' | 'assetTypes' | 'locations' | 'parents' | 'assetIds') => (value: string) => {
+  const createToggleHandler = (dimension: 'services' | 'assetTypes' | 'projects' | 'locations' | 'parents' | 'assetIds') => (value: string) => {
     setFilters(prev => {
       const next = new Set(prev[dimension]);
       if (next.has(value)) next.delete(value);
@@ -168,7 +173,7 @@ export function SearchPanel({ filters, setFilters, availableServices, availableA
     });
   };
 
-  const createToggleAllHandler = (dimension: 'services' | 'assetTypes' | 'locations' | 'parents' | 'assetIds') => (values: string[], selectAll: boolean) => {
+  const createToggleAllHandler = (dimension: 'services' | 'assetTypes' | 'projects' | 'locations' | 'parents' | 'assetIds') => (values: string[], selectAll: boolean) => {
     setFilters(prev => {
       const next = new Set(prev[dimension]);
       if (selectAll) {
@@ -357,6 +362,15 @@ export function SearchPanel({ filters, setFilters, availableServices, availableA
             />
 
             <DimensionFilter
+              title="Projects"
+              icon={<Folder className="w-4 h-4 text-gray-400" />}
+              options={availableProjects}
+              selectedValues={filters.projects}
+              onToggle={createToggleHandler('projects')}
+              onToggleAll={createToggleAllHandler('projects')}
+            />
+
+            <DimensionFilter
               title="Parents"
               icon={<Network className="w-4 h-4 text-gray-400" />}
               options={availableParents}
@@ -383,6 +397,7 @@ export function SearchPanel({ filters, setFilters, availableServices, availableA
                 ...prev, 
                 services: new Set(), 
                 assetTypes: new Set(), 
+                projects: new Set(),
                 locations: new Set(), 
                 parents: new Set(), 
                 assetIds: new Set(),

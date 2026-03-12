@@ -6,6 +6,7 @@ export interface GraphNode {
   displayName?: string;
   location?: string;
   assetType?: string;
+  project?: string;
   parent?: string | string[];
   routerType?: string;
   cidr?: string;
@@ -315,6 +316,7 @@ export function parseAssetData(rawJson: any[]): GraphData {
     
     const location = asset.resource?.location || "global";
     const label = `${assetType}:${cleanDisplayName}`;
+    const project = asset.ancestors && asset.ancestors.length > 0 ? fixReference(asset.ancestors[0]) : undefined;
     const parent = getParent(asset);
 
     let routerType: string | undefined;
@@ -366,6 +368,7 @@ export function parseAssetData(rawJson: any[]): GraphData {
       displayName: cleanDisplayName,
       location: location,
       assetType: assetType,
+      project: project,
       parent: parent,
       ...(routerType && { routerType }),
       ...(cidr && { cidr }),

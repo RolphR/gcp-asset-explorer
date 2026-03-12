@@ -109,6 +109,20 @@ export function Sidebar({ node, onClose, onNavigate, onSelectNode, getNodeDispla
                   <th className="px-4 py-2 font-medium text-gray-500 bg-gray-50">Location</th>
                   <td className="px-4 py-2 text-gray-900">{node.location || 'global'}</td>
                 </tr>
+                {node.project && (
+                  <tr className="bg-white">
+                    <th className="px-4 py-2 font-medium text-gray-500 bg-gray-50">Project</th>
+                    <td className="px-4 py-2 text-gray-900 break-all">
+                      <button 
+                        onClick={() => onSelectNode(node.project!)}
+                        title={node.project}
+                        className="text-blue-600 hover:text-blue-800 hover:underline text-left transition-colors"
+                      >
+                        {getNodeDisplayName(node.project)}
+                      </button>
+                    </td>
+                  </tr>
+                )}
                 <tr className="bg-white">
                   <th className="px-4 py-2 font-medium text-gray-500 bg-gray-50 align-top">Parent</th>
                   <td className="px-4 py-2 text-gray-900 break-all">

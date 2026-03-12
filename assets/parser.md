@@ -41,6 +41,10 @@ If `assetType` is missing, the group is "unknown".
 
 Use the literal `resource.location` property, default to `global` if it's missing.
 
+## Project
+
+Use the first item in the array (`ancestors[0]`) as reference.
+
 ## Parent
 
 To extract an asset's parent reference, use the following strategy:
